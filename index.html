@@ -113,14 +113,47 @@
     margin-top: 40px; text-align: center;
     color: var(--text-sub); font-size: .8rem;
   }
+
+  nav { display: flex; gap: 8px; margin-bottom: 18px; }
+  nav a {
+    padding: 6px 14px; border-radius: 999px;
+    text-decoration: none; font-size: .9rem;
+    color: var(--text-sub); border: 1px solid var(--border);
+  }
+  nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .filter-banner {
+    display: none; align-items: center; gap: 10px;
+    margin-bottom: 16px; padding: 10px 14px;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 10px; font-size: .9rem;
+  }
+  .filter-banner.on { display: flex; }
+  .filter-banner a { color: var(--accent); font-weight: 600; margin-left: auto; }
+
+  .dept {
+    background: var(--accent-soft); color: var(--accent);
+    font-size: .75rem; padding: 2px 8px; border-radius: 999px;
+    white-space: nowrap; font-weight: 600;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <nav>
+    <a href="index.html" class="active">📋 게시판</a>
+    <a href="org.html">🏛️ 조직도</a>
+  </nav>
+
   <header>
     <h1><span class="icon">📋</span> 덕포 일일 기록</h1>
     <p>날짜별로 하루의 대화와 일들을 기록하는 게시판</p>
   </header>
+
+  <div class="filter-banner" id="filterBanner">
+    <span id="filterLabel"></span>
+    <a href="index.html">전체 보기 ✕</a>
+  </div>
 
   <div class="toolbar">
     <input type="search" id="search" class="search" placeholder="제목이나 내용으로 검색...">
@@ -174,11 +207,12 @@ function render(posts) {
       const article = document.createElement('article');
       article.className = 'post';
       const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+      const dept = p.dept ? `<span class="dept">${escapeHtml(p.dept)}</span>` : '';
       article.innerHTML = `
         <button class="post-head" aria-expanded="false">
           <span class="chevron">▶</span>
           <span class="post-title">${escapeHtml(p.title)}</span>
-          ${tags}
+          ${dept}${tags}
           <span class="post-time">${escapeHtml(p.time || '')}</span>
         </button>
         <div class="post-body">${escapeHtml(p.summary)}</div>`;
@@ -198,10 +232,25 @@ function escapeHtml(s) {
   ));
 }
 
+let activeDept = new URLSearchParams(location.search).get('dept');
+let basePosts = [];  // dept 필터 적용 후 기준 집합 (검색은 이 집합 위에서)
+
+function applyDeptFilter() {
+  const banner = document.getElementById('filterBanner');
+  if (activeDept) {
+    basePosts = allPosts.filter(p => p.dept === activeDept);
+    document.getElementById('filterLabel').textContent = `🏷️ ${activeDept} 기록만 보기`;
+    banner.classList.add('on');
+  } else {
+    basePosts = allPosts;
+    banner.classList.remove('on');
+  }
+}
+
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.trim().toLowerCase();
-  if (!q) { render(allPosts); return; }
-  render(allPosts.filter(p =>
+  if (!q) { render(basePosts); return; }
+  render(basePosts.filter(p =>
     p.title.toLowerCase().includes(q) ||
     p.summary.toLowerCase().includes(q) ||
     (p.tags || []).some(t => t.toLowerCase().includes(q))
@@ -210,7 +259,7 @@ document.getElementById('search').addEventListener('input', e => {
 
 fetch('logs/posts.json?t=' + Date.now())
   .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-  .then(posts => { allPosts = posts; render(allPosts); })
+  .then(posts => { allPosts = posts; applyDeptFilter(); render(basePosts); })
   .catch(() => {
     document.getElementById('board').innerHTML =
       '<div class="empty">기록을 불러오지 못했습니다. (logs/posts.json 확인 필요)</div>';

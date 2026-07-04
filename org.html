@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>덕포 조직도</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1f2328;
+    --text-sub: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --border: #e5e7eb;
+    --line: #b6bdc7;
+    --audit: #d97706;
+    --audit-soft: #fef3e2;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418;
+      --card: #1b2027;
+      --text: #e6e8eb;
+      --text-sub: #9aa3ad;
+      --accent: #60a5fa;
+      --accent-soft: #1e2a3d;
+      --border: #2c333c;
+      --line: #3a434e;
+      --audit: #fbbf24;
+      --audit-soft: #3a2f1a;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  nav { display: flex; gap: 8px; margin-bottom: 18px; }
+  nav a {
+    padding: 6px 14px; border-radius: 999px;
+    text-decoration: none; font-size: .9rem;
+    color: var(--text-sub); border: 1px solid var(--border);
+  }
+  nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  header { margin-bottom: 24px; }
+  header h1 { font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
+  header p { color: var(--text-sub); font-size: .9rem; margin-top: 4px; }
+
+  /* 조직도 */
+  .org { display: flex; flex-direction: column; align-items: center; }
+
+  .node {
+    display: block; width: 200px; max-width: 88vw;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform .12s, border-color .12s;
+  }
+  a.node:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .node .emoji { font-size: 1.6rem; }
+  .node .title { font-weight: 700; margin-top: 2px; }
+  .node .role { font-size: .78rem; color: var(--text-sub); margin-top: 4px; min-height: 2.4em; }
+  .node .count {
+    display: inline-block; margin-top: 8px;
+    font-size: .74rem; color: var(--accent);
+    background: var(--accent-soft); padding: 2px 10px; border-radius: 999px;
+  }
+  .node.president { width: 240px; border-color: var(--accent); }
+  .node.president .count { }
+  .node.audit { border-color: var(--audit); }
+  .node.audit .count { color: var(--audit); background: var(--audit-soft); }
+
+  .connector-v { width: 2px; height: 22px; background: var(--line); }
+
+  /* 2단: 비서실장 + 감사실장 */
+  .tier2 {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 40px; position: relative;
+  }
+  .tier2 .audit-wrap { display: flex; align-items: center; }
+  .check-line {
+    align-self: center;
+    width: 40px; height: 0;
+    border-top: 2px dashed var(--audit);
+    position: relative;
+  }
+  .check-line::after {
+    content: "견제·감사"; position: absolute; top: -20px; left: 50%;
+    transform: translateX(-50%); white-space: nowrap;
+    font-size: .68rem; color: var(--audit);
+  }
+
+  /* 3단: 5개 실장 */
+  .tier3-bus { width: 2px; height: 22px; background: var(--line); }
+  .tier3 {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 14px; margin-top: 10px; position: relative;
+  }
+  .tier3::before {
+    content: ""; position: absolute; top: -10px; left: 10%; right: 10%;
+    height: 2px; background: var(--line);
+  }
+  .tier3 .node { width: 150px; }
+  .tier3 .node::before {
+    content: ""; display: block; width: 2px; height: 10px;
+    background: var(--line); margin: -10px auto 6px;
+  }
+
+  .legend {
+    margin-top: 36px; padding: 16px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; font-size: .85rem; color: var(--text-sub);
+  }
+  .legend h3 { font-size: .95rem; color: var(--text); margin-bottom: 8px; }
+  .legend li { margin: 4px 0; list-style: none; }
+  .legend b { color: var(--text); }
+
+  footer { margin-top: 40px; text-align: center; color: var(--text-sub); font-size: .8rem; }
+
+  @media (max-width: 560px) {
+    .tier2 { flex-direction: column; gap: 16px; align-items: center; }
+    .tier2 .audit-wrap { flex-direction: column; }
+    .check-line { width: 0; height: 24px; border-top: none; border-left: 2px dashed var(--audit); }
+    .check-line::after { top: 50%; left: 8px; transform: translateY(-50%); }
+    .tier3::before { display: none; }
+    .tier3 .node::before { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a href="index.html">📋 게시판</a>
+    <a href="org.html" class="active">🏛️ 조직도</a>
+  </nav>
+
+  <header>
+    <h1><span>🏛️</span> 조직도</h1>
+    <p>대통령(본인)을 정점으로 한 실장 체계 — 견제와 균형</p>
+  </header>
+
+  <div class="org" id="org"></div>
+
+  <div class="legend">
+    <h3>보고 · 견제 관계</h3>
+    <ul>
+      <li>• <b>비서실장</b>이 각 실장의 보고를 종합해 <b>대통령</b>에게 직속 보고합니다.</li>
+      <li>• <b>감사실장</b>은 대통령 직속의 독립 라인으로, 비서실장 라인을 <b>견제·감사</b>합니다.</li>
+      <li>• 각 실장 카드를 누르면 해당 실장의 <b>기록</b>만 게시판에서 볼 수 있습니다.</li>
+    </ul>
+  </div>
+
+  <footer>duckpo · 덕포산업단지 조직도</footer>
+</div>
+
+<script>
+const PRESIDENT = { key: '대통령', emoji: '🏛️', title: '대통령 (본인)', role: '최종 의사결정권자' };
+const SECRETARY = { key: '비서실장', emoji: '🗂️', title: '비서실장', role: '직속 보고 — 각 실장의 보고를 종합해 대통령에게 전달' };
+const AUDITOR   = { key: '감사실장', emoji: '🛡️', title: '감사실장', role: '견제와 균형 — 비서실장 라인 감사·견제' };
+const LINE = [
+  { key: '기획실장', emoji: '📐', title: '기획실장', role: '기본 업무 (역할 추후 부여)' },
+  { key: '총무실장', emoji: '🧾', title: '총무실장', role: '기본 업무 (역할 추후 부여)' },
+  { key: '법무실장', emoji: '⚖️', title: '법무실장', role: '로펌 역할 (세부 추후 논의)' },
+  { key: '정보실장', emoji: '🔎', title: '정보실장', role: '웹 정보 취합·분석' },
+  { key: '기록실장', emoji: '📝', title: '기록실장', role: '대화 요약·웹 기록·다이어그램' },
+];
+
+function nodeHtml(d, extraClass, countText) {
+  const inner = `
+    <div class="emoji">${d.emoji}</div>
+    <div class="title">${d.title}</div>
+    <div class="role">${d.role}</div>
+    <div class="count">${countText}</div>`;
+  if (d.key === '대통령') return `<div class="node ${extraClass}">${inner}</div>`;
+  return `<a class="node ${extraClass}" href="index.html?dept=${encodeURIComponent(d.key)}">${inner}</a>`;
+}
+
+function build(counts, total) {
+  const org = document.getElementById('org');
+  const c = k => `기록 ${counts[k] || 0}건`;
+  org.innerHTML = `
+    ${nodeHtml(PRESIDENT, 'president', `전체 ${total}건`)}
+    <div class="connector-v"></div>
+    <div class="tier2">
+      ${nodeHtml(SECRETARY, 'staff', c(SECRETARY.key))}
+      <div class="audit-wrap">
+        <div class="check-line"></div>
+        ${nodeHtml(AUDITOR, 'audit', c(AUDITOR.key))}
+      </div>
+    </div>
+    <div class="tier3-bus"></div>
+    <div class="tier3">
+      ${LINE.map(d => nodeHtml(d, 'line', c(d.key))).join('')}
+    </div>`;
+}
+
+fetch('logs/posts.json?t=' + Date.now())
+  .then(r => r.ok ? r.json() : [])
+  .then(posts => {
+    const counts = {};
+    posts.forEach(p => { if (p.dept) counts[p.dept] = (counts[p.dept] || 0) + 1; });
+    build(counts, posts.length);
+  })
+  .catch(() => build({}, 0));
+</script>
+</body>
+</html>
