@@ -23,9 +23,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+
+      # Pages Source가 "GitHub Actions"일 때만 성공한다.
+      # "Deploy from a branch" 소스이거나 Pages가 꺼져 있으면 여기서 실패하는데,
+      # 그 경우는 아래 단계를 건너뛰어 잡을 실패시키지 않는다.
+      # (branch 소스면 main push만으로 GitHub이 알아서 배포하므로 Actions 배포는 불필요.)
+      - id: cp
+        name: Configure Pages (GitHub Actions source)
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+
+      - name: Pages가 GitHub Actions 소스가 아님
+        if: steps.cp.outcome != 'success'
+        run: |
+          echo "Pages Source가 'GitHub Actions'가 아니거나 Pages가 비활성 상태입니다."
+          echo "→ Actions 배포는 건너뜁니다. (branch 소스라면 main push만으로 자동 배포됩니다.)"
+
+      - name: Upload artifact
+        if: steps.cp.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: .
+
       - id: deployment
+        name: Deploy to GitHub Pages
+        if: steps.cp.outcome == 'success'
         uses: actions/deploy-pages@v4
