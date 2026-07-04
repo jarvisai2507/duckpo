@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>덕포 일일 기록</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1f2328;
+    --text-sub: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --border: #e5e7eb;
+    --shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418;
+      --card: #1b2027;
+      --text: #e6e8eb;
+      --text-sub: #9aa3ad;
+      --accent: #60a5fa;
+      --accent-soft: #1e2a3d;
+      --border: #2c333c;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  header { margin-bottom: 24px; }
+  header h1 { font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
+  header h1 .icon { font-size: 1.8rem; }
+  header p { color: var(--text-sub); font-size: .9rem; margin-top: 4px; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .search {
+    flex: 1; min-width: 200px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    font-size: .95rem;
+    outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+  .count { color: var(--text-sub); font-size: .85rem; white-space: nowrap; }
+
+  .day { margin-bottom: 28px; }
+  .day-header {
+    display: flex; align-items: baseline; gap: 8px;
+    padding-bottom: 8px; margin-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  .day-header h2 { font-size: 1.05rem; color: var(--accent); }
+  .day-header .weekday { font-size: .85rem; color: var(--text-sub); }
+  .day-header .day-count { margin-left: auto; font-size: .8rem; color: var(--text-sub); }
+
+  .post {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .post-head {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    padding: 14px 16px;
+    background: none; border: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .post-head:hover { background: var(--accent-soft); }
+  .post-title { font-weight: 600; flex: 1; }
+  .post-time { color: var(--text-sub); font-size: .82rem; white-space: nowrap; }
+  .tag {
+    background: var(--accent-soft); color: var(--accent);
+    font-size: .75rem; padding: 2px 8px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .chevron { color: var(--text-sub); transition: transform .2s; font-size: .8rem; }
+  .post.open .chevron { transform: rotate(90deg); }
+
+  .post-body {
+    display: none;
+    padding: 4px 16px 16px;
+    border-top: 1px dashed var(--border);
+    color: var(--text);
+    font-size: .95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .post.open .post-body { display: block; }
+
+  .empty {
+    text-align: center; color: var(--text-sub);
+    padding: 60px 0; font-size: .95rem;
+  }
+  footer {
+    margin-top: 40px; text-align: center;
+    color: var(--text-sub); font-size: .8rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="icon">📋</span> 덕포 일일 기록</h1>
+    <p>날짜별로 하루의 대화와 일들을 기록하는 게시판</p>
+  </header>
+
+  <div class="toolbar">
+    <input type="search" id="search" class="search" placeholder="제목이나 내용으로 검색...">
+    <span class="count" id="count"></span>
+  </div>
+
+  <main id="board"></main>
+
+  <footer>duckpo · 덕포산업단지 일일 기록</footer>
+</div>
+
+<script>
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+let allPosts = [];
+
+function formatDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+function weekday(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return WEEKDAYS[new Date(y, m - 1, d).getDay()] + '요일';
+}
+
+function render(posts) {
+  const board = document.getElementById('board');
+  const count = document.getElementById('count');
+  count.textContent = `총 ${posts.length}개의 기록`;
+
+  if (posts.length === 0) {
+    board.innerHTML = '<div class="empty">기록이 없습니다.</div>';
+    return;
+  }
+
+  const byDate = {};
+  posts.forEach(p => (byDate[p.date] ??= []).push(p));
+  const dates = Object.keys(byDate).sort().reverse();
+
+  board.innerHTML = '';
+  dates.forEach(date => {
+    const dayPosts = byDate[date].slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+    const day = document.createElement('section');
+    day.className = 'day';
+    day.innerHTML = `
+      <div class="day-header">
+        <h2>${formatDate(date)}</h2>
+        <span class="weekday">${weekday(date)}</span>
+        <span class="day-count">${dayPosts.length}건</span>
+      </div>`;
+    dayPosts.forEach(p => {
+      const article = document.createElement('article');
+      article.className = 'post';
+      const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+      article.innerHTML = `
+        <button class="post-head" aria-expanded="false">
+          <span class="chevron">▶</span>
+          <span class="post-title">${escapeHtml(p.title)}</span>
+          ${tags}
+          <span class="post-time">${escapeHtml(p.time || '')}</span>
+        </button>
+        <div class="post-body">${escapeHtml(p.summary)}</div>`;
+      article.querySelector('.post-head').addEventListener('click', () => {
+        const open = article.classList.toggle('open');
+        article.querySelector('.post-head').setAttribute('aria-expanded', open);
+      });
+      day.appendChild(article);
+    });
+    board.appendChild(day);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) { render(allPosts); return; }
+  render(allPosts.filter(p =>
+    p.title.toLowerCase().includes(q) ||
+    p.summary.toLowerCase().includes(q) ||
+    (p.tags || []).some(t => t.toLowerCase().includes(q))
+  ));
+});
+
+fetch('logs/posts.json?t=' + Date.now())
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(posts => { allPosts = posts; render(allPosts); })
+  .catch(() => {
+    document.getElementById('board').innerHTML =
+      '<div class="empty">기록을 불러오지 못했습니다. (logs/posts.json 확인 필요)</div>';
+  });
+</script>
+</body>
+</html>
