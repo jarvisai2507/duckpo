@@ -3,11 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  # auto-publish(Auto merge to main) 완료 후 자동 배포.
-  # workflow_run은 기본 브랜치(main) 컨텍스트로 실행되어 Pages 환경 정책을 통과한다.
-  workflow_run:
-    workflows: ["Auto merge to main"]
-    types: [completed]
+  # auto-publish(Auto merge to main)가 머지 후 이 워크플로를 main ref로 dispatch한다.
   workflow_dispatch:
 
 permissions:
@@ -21,20 +17,13 @@ concurrency:
 
 jobs:
   deploy:
-    # workflow_run으로 트리거된 경우, 머지가 성공했을 때만 배포한다.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          ref: main
+      - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

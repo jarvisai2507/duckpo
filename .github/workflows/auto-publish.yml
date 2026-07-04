@@ -1,8 +1,10 @@
 name: Auto merge to main
 
-# 작업 브랜치(claude/**)에 push되면 해당 브랜치를 main에 자동 머지한다.
-# 배포는 이 워크플로 완료 후 deploy-pages.yml이 workflow_run으로 이어받아 수행한다.
-# (Pages 환경은 main 브랜치에서만 배포가 허용되므로 머지/배포를 분리한다.)
+# 작업 브랜치(claude/**)에 push되면:
+#   1) 해당 브랜치를 main에 자동 머지하고
+#   2) main 컨텍스트에서 배포하도록 deploy-pages 워크플로를 dispatch한다.
+# (Pages 환경은 main 브랜치에서만 배포가 허용되고, workflow_run 컨텍스트는
+#  Pages 토큰 권한이 제한되므로 workflow_dispatch로 명시 호출한다.)
 
 on:
   push:
@@ -11,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: auto-merge-main
@@ -33,3 +36,11 @@ jobs:
           git merge --ff-only "origin/${GITHUB_REF_NAME}" \
             || git merge --no-edit "origin/${GITHUB_REF_NAME}"
           git push origin main
+
+      - name: Trigger Pages deploy on main
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-pages.yml/dispatches" \
+            -d '{"ref":"main"}'
