@@ -2,7 +2,8 @@
 
 이 저장소는 날짜별로 하루의 대화/일들을 기록하는 정적 게시판 웹사이트이자, 사용자(대통령)를 정점으로 한 **실장 조직 체계**를 운영하는 공간이다.
 
-- 웹페이지: https://jarvisai2507.github.io/duckpo/ (GitHub Pages, `main` 브랜치 push 시 자동 배포)
+- 웹페이지: https://jarvisai2507.github.io/duckpo/ (GitHub Pages 자동 배포)
+- 자동 공개: 작업 브랜치(`claude/**`)에 push하면 `auto-publish.yml`이 자동으로 `main` 머지 + Pages 배포한다. 기록 후 별도 머지 조작이 필요 없다.
 - 게시판: `index.html` — 날짜별 기록 목록 (게시글 데이터: `logs/posts.json`)
 - 조직도: `org.html` — 실장 체계 시각화 + 실장별 기록 건수
 - 빌드 도구 없음 — 순수 정적 HTML/JS.

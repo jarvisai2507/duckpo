@@ -1,0 +1,51 @@
+name: Auto publish (merge → deploy)
+
+# 기록/작업 브랜치(claude/**)에 push되면
+#   1) 해당 브랜치를 main에 자동 머지하고
+#   2) 그 자리에서 GitHub Pages 배포까지 수행한다.
+# → "대화끝" 기록 커밋이 별도 조작 없이 웹사이트에 자동 공개된다.
+
+on:
+  push:
+    branches: ["claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge pushed branch into main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git merge --ff-only "origin/${GITHUB_REF_NAME}" \
+            || git merge --no-edit "origin/${GITHUB_REF_NAME}"
+          git push origin main
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
