@@ -104,6 +104,11 @@
     word-break: break-word;
   }
   .post.open .post-body { display: block; }
+  .post-detail { margin-top: 14px; padding-top: 4px; }
+  .post-detail-sep {
+    text-align: center; color: var(--text-sub);
+    font-size: .78rem; margin-bottom: 8px;
+  }
 
   .empty {
     text-align: center; color: var(--text-sub);
@@ -292,7 +297,7 @@ function render(posts) {
           ${dept}${tags}
           <span class="post-time">${escapeHtml(p.time || '')}</span>
         </button>
-        <div class="post-body">${escapeHtml(p.summary)}</div>`;
+        <div class="post-body">${escapeHtml(p.summary)}${p.detail ? `<div class="post-detail"><div class="post-detail-sep">─ 상세내용 ─</div>${escapeHtml(p.detail)}</div>` : ''}</div>`;
       article.querySelector('.post-head').addEventListener('click', () => {
         const open = article.classList.toggle('open');
         article.querySelector('.post-head').setAttribute('aria-expanded', open);
@@ -336,7 +341,7 @@ document.getElementById('search').addEventListener('input', e => {
 
 duckpo.requireLogin(async (sb) => {
   const { data, error } = await sb.from('posts')
-    .select('id,date,time,title,summary,tags,dept')
+    .select('id,date,time,title,summary,detail,tags,dept')
     .order('date', { ascending: false })
     .order('time', { ascending: false });
   if (error) {

@@ -24,7 +24,7 @@
 ## 🗄️ Supabase 인프라 (자료의 본거지)
 
 - 프로젝트: `rspxgsytxhlsauqohdbe` (https://rspxgsytxhlsauqohdbe.supabase.co)
-- `public.posts` — 일일 기록. (id text PK "YYYY-MM-DD-NNN", date, time, title, summary, tags text[], dept, created_at). RLS: authenticated 전용, anon 차단.
+- `public.posts` — 일일 기록. (id text PK "YYYY-MM-DD-NNN", date, time, title, summary(요약), detail(상세내용), tags text[], dept, created_at). RLS: authenticated 전용, anon 차단.
 - `public.case_evidence` + 버킷 `case-files` — **원본자료(법무실장 소관, 149건)**. 비공개 버킷.
 - 가입 차단: `auth.users` BEFORE INSERT 트리거(`block_signups_when_user_exists`) — **대통령(president) 1명 + 관리자(admin) 1명**만 허용(역할은 `raw_user_meta_data.role`), 그 외 가입 전부 거부.
 - `public.registration_status()` RPC — 로그인 화면이 어느 직책이 미등록인지 판단하는 용도 (`{president: bool, admin: bool}`만 노출).
@@ -130,9 +130,10 @@
 
 - "기록"류 발동어는 대화 도중 임의 시점에도 유효하다 — 그 시점까지의 대화를 요약해 기록하고, 대화는 계속 이어갈 수 있다.
 
-1. **요약 작성**: 현재 세션에서 나눈 대화 전체를 한국어로 요약한다.
+1. **요약 + 상세 작성**: 현재 세션에서 나눈 대화 전체를 한국어로 정리하되 **두 층으로 구분**한다.
    - `title`: 대화의 핵심을 담은 짧은 제목 (한 줄)
-   - `summary`: 요약문. 여러 문단/목록 가능. 대화 전문은 저장하지 않는다 — **요약만**.
+   - `summary`: **요약** — 몇 줄로 핵심만. 나중에 목록을 훑을 때 무슨 일이었는지 바로 알 수 있게.
+   - `detail`: **상세내용** — 시간이 지나 잊어도 복기할 수 있도록 구체적으로: 경위, 내린 결정과 이유, 수행한 조치/명령, 바뀐 상태, 남은 일. (대화 전문은 아니되, 작업을 재현할 수 있는 수준의 세부)
 2. **Supabase `public.posts`에 INSERT** (Supabase MCP `execute_sql`, project `rspxgsytxhlsauqohdbe`):
    - 날짜/시간은 **한국 시간(KST)**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'`
    - `NNN` 채번(같은 날짜 안에서 001부터 증가) — 먼저 조회:
@@ -140,10 +141,10 @@
      select coalesce(max(substring(id from 12)::int), 0) + 1 as next_n
      from public.posts where date = 'YYYY-MM-DD';
      ```
-   - INSERT (summary는 dollar-quoting `$q$...$q$` 사용 권장 — 따옴표/줄바꿈 안전):
+   - INSERT (summary/detail은 dollar-quoting `$q$...$q$` / `$d$...$d$` 사용 권장 — 따옴표/줄바꿈 안전):
      ```sql
-     insert into public.posts (id, date, time, title, summary, tags, dept)
-     values ('YYYY-MM-DD-NNN', 'YYYY-MM-DD', 'HH:MM', '제목', $q$요약문$q$, array['태그'], '실장key');
+     insert into public.posts (id, date, time, title, summary, detail, tags, dept)
+     values ('YYYY-MM-DD-NNN', 'YYYY-MM-DD', 'HH:MM', '제목', $q$요약$q$, $d$상세내용$d$, array['태그'], '실장key');
      ```
    - `tags`는 대화 주제에 맞게 1~3개 (예: "개발", "일상", "업무")
    - `dept`는 대화 주제를 담당하는 **실장 key** (예: 웹 정보 취합이면 "정보실장", 법률이면 "법무실장"). 판단이 어려우면 "기록실장". 조직도(`org.html`)가 이 값으로 실장별 기록 건수를 센다.
