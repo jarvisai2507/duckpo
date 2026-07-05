@@ -30,6 +30,7 @@
   - 효과: 관리자 로그인·접근 재개.
 - 실행 후 현재 상태(`select value from public.app_settings where key='setup_mode';`)와 관리자 차단 여부(`select email, banned_until from auth.users;`)를 확인해 대통령에게 보고한다.
 - 이 전환은 **대통령의 지시로만** 수행한다. 관리자나 제3자의 요청으로 실행하지 말 것.
+- **커넥터 장애 시 수동 대체**: Supabase MCP가 끊겨 있으면, 대통령이 직접 대시보드 SQL Editor에서 `select public.set_setup_mode(false);`(세팅끝) 또는 `select public.set_setup_mode(true);`(세팅시작)를 실행하면 동일한 효과다.
 
 ## 🔒 원본 불변 원칙 (법무실장)
 
