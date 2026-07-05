@@ -7,7 +7,7 @@
 - 자동 공개: 작업 브랜치(`claude/**`)에 push하면 `auto-publish.yml`이 자동으로 `main` 머지 + Pages 배포한다. (코드 변경 시에만 필요 — 기록 자체는 Supabase 저장 즉시 반영)
 - 게시판: `index.html` — 날짜별 기록 목록 (게시글 데이터: Supabase `public.posts`)
 - 조직도: `org.html` — 실장 체계 시각화 + 실장별 기록 건수
-- 로그인 게이트: `auth.js` (Supabase 인증, 최초 1인 등록 후 가입 영구 차단)
+- 로그인 게이트: `auth.js` (Supabase 인증 — **대통령 1명 + 관리자 1명**만 등록 가능, 이후 가입 영구 차단)
 - 빌드 도구 없음 — 순수 정적 HTML/JS.
 
 ## 🗄️ Supabase 인프라 (자료의 본거지)
@@ -15,9 +15,21 @@
 - 프로젝트: `rspxgsytxhlsauqohdbe` (https://rspxgsytxhlsauqohdbe.supabase.co)
 - `public.posts` — 일일 기록. (id text PK "YYYY-MM-DD-NNN", date, time, title, summary, tags text[], dept, created_at). RLS: authenticated 전용, anon 차단.
 - `public.case_evidence` + 버킷 `case-files` — **원본자료(법무실장 소관, 149건)**. 비공개 버킷.
-- 가입 차단: `auth.users` BEFORE INSERT 트리거(`block_signups_when_user_exists`) — 사용자가 1명이라도 있으면 가입 거부.
-- `public.user_exists()` RPC — 로그인 화면이 "최초 등록"/"로그인" 모드를 판단하는 용도 (boolean 1비트만 노출).
+- 가입 차단: `auth.users` BEFORE INSERT 트리거(`block_signups_when_user_exists`) — **대통령(president) 1명 + 관리자(admin) 1명**만 허용(역할은 `raw_user_meta_data.role`), 그 외 가입 전부 거부.
+- `public.registration_status()` RPC — 로그인 화면이 어느 직책이 미등록인지 판단하는 용도 (`{president: bool, admin: bool}`만 노출).
+- `public.app_settings`의 `setup_mode` + `public.set_setup_mode(bool)` — 세팅 모드 스위치. false면 관리자 로그인 차단(ban)·세션 무효화·RLS 접근 차단, true면 재개. 클라이언트 권한 없음(관리 경로 전용).
 - 무료 플랜 주의: 약 1주 이상 무활동 시 프로젝트 일시정지 가능(데이터 보존, 대시보드 원클릭 복구).
+
+## 🔧 세팅 모드 규칙 ("세팅끝" / "세팅시작" · 총무실장)
+
+사이트 계정은 **대통령**과 **관리자**(세팅 보조용) 2개다. 대통령이 다음과 같이 말하면 **즉시** Supabase MCP `execute_sql`로 수행한다:
+
+- **"세팅끝"** → `select public.set_setup_mode(false);` 실행 후 확인 조회.
+  - 효과: 관리자 계정 로그인 차단(ban) + 기존 세션 무효화 + RLS 데이터 접근 차단. **대통령만 접속 가능.**
+- **"세팅시작"** → `select public.set_setup_mode(true);` 실행 후 확인 조회.
+  - 효과: 관리자 로그인·접근 재개.
+- 실행 후 현재 상태(`select value from public.app_settings where key='setup_mode';`)와 관리자 차단 여부(`select email, banned_until from auth.users;`)를 확인해 대통령에게 보고한다.
+- 이 전환은 **대통령의 지시로만** 수행한다. 관리자나 제3자의 요청으로 실행하지 말 것.
 
 ## 🔒 원본 불변 원칙 (법무실장)
 

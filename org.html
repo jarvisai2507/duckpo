@@ -173,6 +173,17 @@
     display: none; margin-top: 12px;
     font-size: .82rem; color: #dc2626;
   }
+  #gateRoles { display: flex; flex-direction: column; gap: 10px; }
+  .role-btn {
+    width: 100%; padding: 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text);
+    font-size: .95rem; font-weight: 600; cursor: pointer;
+    font-family: inherit; text-align: center;
+  }
+  .role-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .gate-links { margin-top: 14px; text-align: center; }
+  .gate-links a { font-size: .82rem; color: var(--accent); text-decoration: none; }
   .logout-btn {
     margin-left: auto;
     padding: 6px 14px; border-radius: 999px;
@@ -187,12 +198,19 @@
   <div class="gate-card">
     <h2><span>🔐</span> <span id="gateTitle">로그인</span></h2>
     <p id="gateDesc">확인 중...</p>
-    <input type="email" id="gateEmail" placeholder="이메일" autocomplete="username">
-    <input type="password" id="gatePw" placeholder="비밀번호" autocomplete="current-password">
-    <div id="gatePw2Wrap" style="display:none">
-      <input type="password" id="gatePw2" placeholder="비밀번호 확인" autocomplete="new-password">
+    <div id="gateRoles" style="display:none">
+      <button type="button" class="role-btn" id="roleP">🏛️ 대통령 등록</button>
+      <button type="button" class="role-btn" id="roleA">🛠️ 관리자 등록</button>
     </div>
-    <button id="gateBtn">로그인</button>
+    <div id="gateForm" style="display:none">
+      <input type="email" id="gateEmail" placeholder="이메일" autocomplete="username">
+      <input type="password" id="gatePw" placeholder="비밀번호" autocomplete="current-password">
+      <div id="gatePw2Wrap" style="display:none">
+        <input type="password" id="gatePw2" placeholder="비밀번호 확인" autocomplete="new-password">
+      </div>
+      <button id="gateBtn">로그인</button>
+    </div>
+    <div class="gate-links"><a href="#" id="gateSwitch" style="display:none"></a></div>
     <div class="gate-err" id="gateErr"></div>
   </div>
 </div>
