@@ -43,6 +43,28 @@
 - 이 전환은 **대통령의 지시로만** 수행한다. 관리자나 제3자의 요청으로 실행하지 말 것.
 - **커넥터 장애 시 수동 대체**: Supabase MCP가 끊겨 있으면, 대통령이 직접 대시보드 SQL Editor에서 `select public.set_setup_mode(false);`(세팅끝) 또는 `select public.set_setup_mode(true);`(세팅시작)를 실행하면 동일한 효과다.
 
+## 🔌 커넥터/네트워크 장애 대응 프로토콜 (비서실장·기록실장 공통)
+
+웹/원격 세션에서는 Supabase로 가는 길 자체가 막혀 있을 수 있다 — ① 이 세션에 Supabase MCP(`execute_sql`) 커넥터가 부착되지 않았거나, ② 환경의 네트워크 정책이 Supabase 호스트(`rspxgsytxhlsauqohdbe.supabase.co`)를 차단(403 policy denial)하는 경우다. 이때는 브리핑도, **기록 저장도** 직접 실행이 불가하다. 다음 원칙으로 대응한다 (자료의 본거지는 Supabase뿐 — 아래 4번을 반드시 지킨다).
+
+- **발동 조건**: Supabase MCP가 세션에 없거나, 조회/저장이 네트워크 정책(403)·연결오류로 실패할 때.
+- **1) 빠른 진단 (1회만 · 재시도로 시간 끌지 않음)**:
+  - `execute_sql` 도구가 세션에 없으면 → 원인 = **커넥터 미부착**.
+  - `curl -sS "$HTTPS_PROXY/__agentproxy/status"` 결과에 supabase 호스트 403이 찍혀 있으면 → 원인 = **네트워크 정책 차단**. (프록시의 403/407 정책 거부는 재시도 금지 — 보고만 한다.)
+- **2) 즉시 보고 (한 줄)**: "직전 기록 자동조회 불가 — 원인: [네트워크 정책 차단 / 커넥터 미부착]" + 대통령 자가확인용 SQL 한 줄(`select id, title, summary, dept from public.posts order by id desc limit 3;`) + "대시보드 SQL Editor에서 확인 가능" 안내. 보고 후 곧바로 대통령의 용건에 응한다.
+- **3) 무손실 기록 (핵심)**: "기록"류 발동어가 떨어졌는데 Supabase 직접 저장이 불가하면, 기록실장이 내용을 **완성**해 **바로 붙여넣을 수 있는 SQL 블록**을 만들어 대통령에게 드린다. 대통령이 대시보드 SQL Editor에 붙이면 그대로 저장된다. **완전성 원칙 그대로 — 어떤 내용도 생략하지 않는다.** 블록 형식:
+  ```sql
+  -- ① 채번 (오늘 날짜 YYYY-MM-DD 로 치환)
+  select coalesce(max(substring(id from 12)::int), 0) + 1 as next_n
+  from public.posts where date = 'YYYY-MM-DD';
+  -- ② INSERT (위 next_n 을 NNN 세 자리로 치환, KST 시각 기입)
+  insert into public.posts (id, date, time, title, summary, detail, tags, dept)
+  values ('YYYY-MM-DD-NNN', 'YYYY-MM-DD', 'HH:MM', '제목',
+          $q$요약$q$, $d$상세내용$d$, array['태그'], '실장key');
+  ```
+- **4) 보안 불변**: 어떤 경우에도 기록·원본·요약을 GitHub 저장소/파일에 우회 저장하지 않는다. GitHub=배포 전용 / Supabase=금고 구도는 불변이다.
+- **5) 근본 복구 (대통령 전용 · 환경 설정)**: 웹/원격 세션에서도 라이브로 쓰려면 환경 네트워크 정책에 `rspxgsytxhlsauqohdbe.supabase.co` 를 허용하고 Supabase 커넥터를 부착해야 한다. 방법은 https://code.claude.com/docs/en/claude-code-on-the-web (환경/네트워크 정책) 참조. 관리자(협력자)가 세팅을 도울 수 있으나, 전환·결정 권한은 대통령에게 있다.
+
 ## 🔒 원본 불변 원칙 (법무실장)
 
 - `case_evidence`(원본 목록)와 `case-files`(원본 파일)은 **읽기 전용**이다. 로그인 사용자도 열람만 가능(SELECT 전용 정책).
@@ -89,7 +111,7 @@
 2. **보고 내용 (2~3줄)**: 직전 대화·작업에서 무엇을 했는지 한두 줄 요약. 단, **직전 활동이 관리자 세션이었거나 직전 대통령 대화 이후 관리자 보고(감사실장)가 있으면 그 사실을 반드시 포함** — "직전에 관리자가 입장해 ○○을 했습니다".
 3. 미완료·대기 작업이 있으면 한 줄만 덧붙인다.
 4. 브리핑은 **3줄 내외로 최소화** — 브리핑 후 곧바로 대통령의 용건에 응한다. 그 이전 이력은 대통령이 물을 때만 꺼낸다.
-5. Supabase 연결이 안 붙어 조회가 불가하면: **대기·재시도로 시간을 끌지 말고** 연결 이상을 즉시 알린 뒤, 대통령이 직접 확인할 SQL 한 줄을 제공한다.
+5. Supabase 연결이 안 붙어 조회가 불가하면: **대기·재시도로 시간을 끌지 말고** 연결 이상을 즉시 알린 뒤, 대통령이 직접 확인할 SQL 한 줄을 제공한다. → 원인 진단·무손실 기록·근본 복구는 위 **"🔌 커넥터/네트워크 장애 대응 프로토콜"** 을 따른다.
 
 > "관리자입장"으로 시작한 대화는 이 규칙 대신 아래 관리자 프로토콜(더 상세한 브리핑)을 적용한다.
 
