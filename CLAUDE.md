@@ -2,11 +2,28 @@
 
 이 저장소는 날짜별로 하루의 대화/일들을 기록하는 정적 게시판 웹사이트이자, 사용자(대통령)를 정점으로 한 **실장 조직 체계**를 운영하는 공간이다.
 
-- 웹페이지: https://jarvisai2507.github.io/duckpo/ (GitHub Pages 자동 배포)
-- 자동 공개: 작업 브랜치(`claude/**`)에 push하면 `auto-publish.yml`이 자동으로 `main` 머지 + Pages 배포한다. 기록 후 별도 머지 조작이 필요 없다.
-- 게시판: `index.html` — 날짜별 기록 목록 (게시글 데이터: `logs/posts.json`)
+- 웹페이지: https://jarvisai2507.github.io/duckpo/ (GitHub Pages 자동 배포 · **로그인 필요, 소유자 1인 전용**)
+- 보안 구도: **GitHub = 배포 전용(화면 코드만, 자료 없음) / Supabase = 모든 자료의 본거지(비공개·RLS 잠금)**
+- 자동 공개: 작업 브랜치(`claude/**`)에 push하면 `auto-publish.yml`이 자동으로 `main` 머지 + Pages 배포한다. (코드 변경 시에만 필요 — 기록 자체는 Supabase 저장 즉시 반영)
+- 게시판: `index.html` — 날짜별 기록 목록 (게시글 데이터: Supabase `public.posts`)
 - 조직도: `org.html` — 실장 체계 시각화 + 실장별 기록 건수
+- 로그인 게이트: `auth.js` (Supabase 인증, 최초 1인 등록 후 가입 영구 차단)
 - 빌드 도구 없음 — 순수 정적 HTML/JS.
+
+## 🗄️ Supabase 인프라 (자료의 본거지)
+
+- 프로젝트: `rspxgsytxhlsauqohdbe` (https://rspxgsytxhlsauqohdbe.supabase.co)
+- `public.posts` — 일일 기록. (id text PK "YYYY-MM-DD-NNN", date, time, title, summary, tags text[], dept, created_at). RLS: authenticated 전용, anon 차단.
+- `public.case_evidence` + 버킷 `case-files` — **원본자료(법무실장 소관, 149건)**. 비공개 버킷.
+- 가입 차단: `auth.users` BEFORE INSERT 트리거(`block_signups_when_user_exists`) — 사용자가 1명이라도 있으면 가입 거부.
+- `public.user_exists()` RPC — 로그인 화면이 "최초 등록"/"로그인" 모드를 판단하는 용도 (boolean 1비트만 노출).
+- 무료 플랜 주의: 약 1주 이상 무활동 시 프로젝트 일시정지 가능(데이터 보존, 대시보드 원클릭 복구).
+
+## 🔒 원본 불변 원칙 (법무실장)
+
+- `case_evidence`(원본 목록)와 `case-files`(원본 파일)은 **읽기 전용**이다. 로그인 사용자도 열람만 가능(SELECT 전용 정책).
+- 원본의 수정·삭제는 금지. 재정리·분류·가공이 필요하면 **별도 정리 테이블/뷰**를 만들어 수행한다.
+- 원본에 대한 구조적 변경은 대통령의 명시적 지시가 있을 때만, 관리 경로(마이그레이션)로 수행한다.
 
 ## 🏛️ 조직 체계 (실장)
 
@@ -47,26 +64,24 @@
 1. **요약 작성**: 현재 세션에서 나눈 대화 전체를 한국어로 요약한다.
    - `title`: 대화의 핵심을 담은 짧은 제목 (한 줄)
    - `summary`: 요약문. 여러 문단/목록 가능. 대화 전문은 저장하지 않는다 — **요약만**.
-2. **`logs/posts.json`에 새 항목 추가** (배열 맨 뒤에 append):
-   ```json
-   {
-     "id": "YYYY-MM-DD-NNN",
-     "date": "YYYY-MM-DD",
-     "time": "HH:MM",
-     "title": "제목",
-     "summary": "요약문 (줄바꿈은 \\n)",
-     "tags": ["태그"],
-     "dept": "기록실장"
-   }
-   ```
-   - 날짜/시간은 **한국 시간(KST, Asia/Seoul)** 기준: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'`
-   - `id`의 `NNN`은 같은 날짜 안에서 001부터 증가하는 일련번호 (예: 같은 날 두 번째 기록이면 `-002`)
+2. **Supabase `public.posts`에 INSERT** (Supabase MCP `execute_sql`, project `rspxgsytxhlsauqohdbe`):
+   - 날짜/시간은 **한국 시간(KST)**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'`
+   - `NNN` 채번(같은 날짜 안에서 001부터 증가) — 먼저 조회:
+     ```sql
+     select coalesce(max(substring(id from 12)::int), 0) + 1 as next_n
+     from public.posts where date = 'YYYY-MM-DD';
+     ```
+   - INSERT (summary는 dollar-quoting `$q$...$q$` 사용 권장 — 따옴표/줄바꿈 안전):
+     ```sql
+     insert into public.posts (id, date, time, title, summary, tags, dept)
+     values ('YYYY-MM-DD-NNN', 'YYYY-MM-DD', 'HH:MM', '제목', $q$요약문$q$, array['태그'], '실장key');
+     ```
    - `tags`는 대화 주제에 맞게 1~3개 (예: "개발", "일상", "업무")
    - `dept`는 대화 주제를 담당하는 **실장 key** (예: 웹 정보 취합이면 "정보실장", 법률이면 "법무실장"). 판단이 어려우면 "기록실장". 조직도(`org.html`)가 이 값으로 실장별 기록 건수를 센다.
-3. **commit & push**: 커밋 메시지는 `기록: YYYY-MM-DD 제목` 형식.
-4. **다이어그램/알림**: 기록이 게시되었음을 알리고 페이지 주소(https://jarvisai2507.github.io/duckpo/)를 전한다. 조직 구조가 바뀌었거나 사용자가 원하면 조직도/요약 다이어그램을 그려서 보여준다.
+   - INSERT 후 확인: `select id, title from public.posts where id = '<새 id>';`
+3. **commit & push는 기록에는 불필요** — 기록은 Supabase에만 저장되며 사이트에 즉시 반영된다. commit & push는 **코드(html/js/워크플로/CLAUDE.md 등) 변경이 있을 때만** 수행한다.
+4. **다이어그램/알림**: 기록이 저장되었음을 알리고 페이지 주소(https://jarvisai2507.github.io/duckpo/ · 로그인 필요)를 전한다. 조직 구조가 바뀌었거나 사용자가 원하면 조직도/요약 다이어그램을 그려서 보여준다.
 
 주의:
-- `posts.json`은 유효한 JSON이어야 한다. 추가 후 `python3 -m json.tool logs/posts.json`으로 검증할 것.
-- 기존 항목을 수정하거나 삭제하지 말 것 (사용자가 명시적으로 요청한 경우 제외).
+- 기존 기록 행을 UPDATE/DELETE 하지 말 것 (사용자가 명시적으로 요청한 경우 제외).
 - 실장(`org.html`의 key) 이름을 바꾸거나 추가할 때는 `org.html`의 `LINE`/상수와 `dept` 값이 일치하도록 유지한다.

@@ -136,13 +136,70 @@
     font-size: .75rem; padding: 2px 8px; border-radius: 999px;
     white-space: nowrap; font-weight: 600;
   }
+
+  /* 로그인 게이트 */
+  #authGate {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .gate-card {
+    width: 100%; max-width: 360px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 28px 24px;
+  }
+  .gate-card h2 { font-size: 1.2rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .gate-card p { font-size: .85rem; color: var(--text-sub); margin-bottom: 16px; }
+  .gate-card input {
+    width: 100%; margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text);
+    font-size: .95rem; outline: none;
+  }
+  .gate-card input:focus { border-color: var(--accent); }
+  .gate-card button {
+    width: 100%; padding: 11px;
+    border: none; border-radius: 10px;
+    background: var(--accent); color: #fff;
+    font-size: .95rem; font-weight: 600; cursor: pointer;
+  }
+  .gate-card button:disabled { opacity: .6; cursor: wait; }
+  .gate-err {
+    display: none; margin-top: 12px;
+    font-size: .82rem; color: #dc2626;
+  }
+  .logout-btn {
+    margin-left: auto;
+    padding: 6px 14px; border-radius: 999px;
+    font-size: .9rem; cursor: pointer;
+    color: var(--text-sub); border: 1px solid var(--border);
+    background: none; font-family: inherit;
+  }
 </style>
 </head>
 <body>
+<div id="authGate">
+  <div class="gate-card">
+    <h2><span>🔐</span> <span id="gateTitle">로그인</span></h2>
+    <p id="gateDesc">확인 중...</p>
+    <input type="email" id="gateEmail" placeholder="이메일" autocomplete="username">
+    <input type="password" id="gatePw" placeholder="비밀번호" autocomplete="current-password">
+    <div id="gatePw2Wrap" style="display:none">
+      <input type="password" id="gatePw2" placeholder="비밀번호 확인" autocomplete="new-password">
+    </div>
+    <button id="gateBtn">로그인</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
 <div class="wrap">
   <nav>
     <a href="index.html" class="active">📋 게시판</a>
     <a href="org.html">🏛️ 조직도</a>
+    <button class="logout-btn" onclick="duckpo.logout()">로그아웃</button>
   </nav>
 
   <header>
@@ -165,6 +222,8 @@
   <footer>duckpo · 덕포산업단지 일일 기록</footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
 <script>
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 let allPosts = [];
@@ -257,13 +316,20 @@ document.getElementById('search').addEventListener('input', e => {
   ));
 });
 
-fetch('logs/posts.json?t=' + Date.now())
-  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-  .then(posts => { allPosts = posts; applyDeptFilter(); render(basePosts); })
-  .catch(() => {
+duckpo.requireLogin(async (sb) => {
+  const { data, error } = await sb.from('posts')
+    .select('id,date,time,title,summary,tags,dept')
+    .order('date', { ascending: false })
+    .order('time', { ascending: false });
+  if (error) {
     document.getElementById('board').innerHTML =
-      '<div class="empty">기록을 불러오지 못했습니다. (logs/posts.json 확인 필요)</div>';
-  });
+      '<div class="empty">기록을 불러오지 못했습니다. (Supabase 연결 확인 필요)</div>';
+    return;
+  }
+  allPosts = data;
+  applyDeptFilter();
+  render(basePosts);
+});
 </script>
 </body>
 </html>

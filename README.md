@@ -1,34 +1,37 @@
 # duckpo
 덕포산업단지
 
-## 📋 일일 기록 게시판
+## 📋 일일 기록 게시판 (비공개 · 로그인 필요)
 
-날짜별로 하루의 대화와 일들을 기록하는 게시판 웹사이트입니다.
+날짜별로 하루의 대화와 일들을 기록하는 게시판 웹사이트입니다. **로그인한 소유자 1인만 열람할 수 있습니다.**
 
-**웹페이지**: https://jarvisai2507.github.io/duckpo/
+**웹페이지**: https://jarvisai2507.github.io/duckpo/ (접속 시 로그인 화면)
 
 ### 사용법
 
 Claude와 대화하다가 **"대화끝"** 또는 **"오늘끝"** 이라고 말하면, Claude가 그날의 대화를 요약해서 게시판에 자동으로 올립니다.
 
+### 보안 구조 — "공개 껍데기, 비공개 금고"
+
+- 이 저장소(GitHub)에는 **화면 코드만** 있고 **기록 데이터는 전혀 없습니다.** 저장소가 공개여도 자료는 노출되지 않습니다.
+- 기록 데이터는 전부 **Supabase**(`public.posts` 테이블, RLS 잠금)에 저장되며, **로그인한 사용자에게만** 전송됩니다.
+- 계정은 **단 1개(소유자)만** 존재할 수 있습니다 — 최초 등록 후에는 DB 트리거가 모든 추가 가입을 영구 차단합니다.
+- `auth.js`에 들어 있는 `sb_publishable_...` 키는 **공개용으로 설계된 키**입니다(비밀 아님). 실제 방어는 RLS가 담당하므로 저장소에 있어도 안전합니다.
+- 과거 `logs/posts.json`은 2026-07-05에 Supabase로 이전 후 제거됨. git 히스토리에 남은 3건은 이 사이트 제작 기록(비민감)이라 문제 없습니다.
+
 ### 구조
 
-- `index.html` — 게시판 페이지 (날짜별 그룹, 검색, 펼침/접힘, 실장별 필터)
-- `org.html` — 조직도 페이지 (실장 체계 시각화 + 실장별 기록 건수)
-- `logs/posts.json` — 게시글 데이터
+- `index.html` — 게시판 페이지 (로그인 게이트, 날짜별 그룹, 검색, 펼침/접힘, 실장별 필터)
+- `org.html` — 조직도 페이지 (로그인 게이트, 실장 체계 시각화 + 실장별 기록 건수)
+- `auth.js` — 로그인/최초 등록 게이트 (Supabase 인증)
 - `.github/workflows/auto-publish.yml` — 작업 브랜치(`claude/**`) push 시 자동으로 `main`에 머지
-- `.github/workflows/deploy-pages.yml` — `main` 갱신(머지 완료 또는 직접 push) 시 GitHub Pages 자동 배포
+- `.github/workflows/deploy-pages.yml` — `main` 갱신 시 GitHub Pages 자동 배포
 - `CLAUDE.md` — 조직 체계 정의 & 대화 기록 규칙
 
 ### 자동 공개 흐름
 
-작업 브랜치(`claude/**`)에 커밋이 push되면 → `auto-publish.yml`이 `main`에 자동 머지 → 완료 후 `deploy-pages.yml`이 이어받아 GitHub Pages에 배포합니다. 즉 **"대화끝" 기록이 별도 조작 없이 웹사이트에 자동 공개**됩니다.
+작업 브랜치(`claude/**`)에 커밋이 push되면 → `auto-publish.yml`이 `main`에 자동 머지 → `deploy-pages.yml`이 GitHub Pages에 배포합니다. 배포되는 것은 화면 껍데기뿐이고, 기록 자체는 Supabase에 저장되는 즉시 (로그인 후) 보입니다.
 
-### 최초 설정 (1회) — Pages 켜기
+### 참고
 
-GitHub 정책상 이 스위치는 저장소 소유자만 켤 수 있습니다. 아래 **둘 중 아무 방법이나 한 번만** 하면, 이후 배포는 전부 자동입니다.
-
-- **방법 A (추천)**: 저장소 **Settings → Pages → Build and deployment → Source** 드롭다운에서 **`GitHub Actions`** 선택 (별도 저장 버튼 없음 — 선택 즉시 적용)
-- **방법 B**: 같은 화면에서 Source를 **`Deploy from a branch`** 로 두고 **Branch: `main` / `(root)`** 선택 후 **Save**
-
-어느 쪽이든 자동배포 파이프라인(`auto-publish.yml` → `deploy-pages.yml`)이 그대로 동작합니다. 설정 후 잠시 뒤 화면 상단에 "Your site is live at …" 안내가 뜨면 완료입니다.
+- Supabase 무료 플랜은 약 1주 이상 활동이 없으면 프로젝트가 일시정지될 수 있습니다(데이터 보존). 대시보드에서 원클릭 복구 가능하며, 평소처럼 기록을 남기면 정지되지 않습니다.
