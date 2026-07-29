@@ -14,11 +14,6 @@
     --accent-soft: #eff6ff;
     --border: #e5e7eb;
     --shadow: 0 1px 3px rgba(0,0,0,.06);
-    --cat-lawyer: #2563eb;   --cat-lawyer-soft: #eff6ff;
-    --cat-media: #ea580c;    --cat-media-soft: #fff7ed;
-    --cat-civic: #16a34a;    --cat-civic-soft: #f0fdf4;
-    --cat-criminal: #dc2626; --cat-criminal-soft: #fef2f2;
-    --cat-civil: #7c3aed;    --cat-civil-soft: #f5f3ff;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -30,11 +25,6 @@
       --accent-soft: #1e2a3d;
       --border: #2c333c;
       --shadow: 0 1px 3px rgba(0,0,0,.4);
-      --cat-lawyer: #60a5fa;   --cat-lawyer-soft: #1e2a3d;
-      --cat-media: #fb923c;    --cat-media-soft: #3a2410;
-      --cat-civic: #4ade80;    --cat-civic-soft: #14291c;
-      --cat-criminal: #f87171; --cat-criminal-soft: #3a1a1a;
-      --cat-civil: #a78bfa;    --cat-civil-soft: #271f3d;
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -152,15 +142,11 @@
     white-space: nowrap; font-weight: 600;
   }
 
+  /* 카테고리 뱃지·탭 색은 DB(category_meta)에서 읽어 인라인 스타일로 적용한다 — 코드 수정 없이 색을 바꿀 수 있게 하기 위함 */
   .cat {
     font-size: .75rem; padding: 2px 8px; border-radius: 999px;
     white-space: nowrap; font-weight: 600;
   }
-  .cat-lawyer   { background: var(--cat-lawyer-soft);   color: var(--cat-lawyer); }
-  .cat-media    { background: var(--cat-media-soft);    color: var(--cat-media); }
-  .cat-civic    { background: var(--cat-civic-soft);    color: var(--cat-civic); }
-  .cat-criminal { background: var(--cat-criminal-soft); color: var(--cat-criminal); }
-  .cat-civil    { background: var(--cat-civil-soft);    color: var(--cat-civil); }
 
   .cat-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .cat-tab {
@@ -169,12 +155,7 @@
     border: 1px solid var(--border); color: var(--text-sub);
     background: var(--card);
   }
-  .cat-tab.active-all       { background: var(--accent);        color: #fff; border-color: var(--accent); }
-  .cat-tab.active-lawyer    { background: var(--cat-lawyer);    color: #fff; border-color: var(--cat-lawyer); }
-  .cat-tab.active-media     { background: var(--cat-media);     color: #fff; border-color: var(--cat-media); }
-  .cat-tab.active-civic     { background: var(--cat-civic);     color: #fff; border-color: var(--cat-civic); }
-  .cat-tab.active-criminal  { background: var(--cat-criminal);  color: #fff; border-color: var(--cat-criminal); }
-  .cat-tab.active-civil     { background: var(--cat-civil);     color: #fff; border-color: var(--cat-civil); }
+  .cat-tab.active-all { background: var(--accent); color: #fff; border-color: var(--accent); }
 
   /* 로그인 게이트 */
   #authGate {
@@ -264,14 +245,7 @@
     <p>날짜별로 하루의 대화와 일들을 기록하는 게시판</p>
   </header>
 
-  <div class="cat-tabs" id="catTabs">
-    <a href="index.html" class="cat-tab" data-cat="">전체</a>
-    <a href="index.html?category=변호사" class="cat-tab" data-cat="변호사">🔵 변호사</a>
-    <a href="index.html?category=언론" class="cat-tab" data-cat="언론">🟠 언론</a>
-    <a href="index.html?category=시민단체" class="cat-tab" data-cat="시민단체">🟢 시민단체</a>
-    <a href="index.html?category=형사" class="cat-tab" data-cat="형사">🔴 형사</a>
-    <a href="index.html?category=민사" class="cat-tab" data-cat="민사">🟣 민사</a>
-  </div>
+  <div class="cat-tabs" id="catTabs"></div>
 
   <div class="filter-banner" id="filterBanner">
     <span id="filterLabel"></span>
@@ -294,13 +268,26 @@
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 let allPosts = [];
 
-const CAT_META = {
-  '변호사':   { slug: 'lawyer',   emoji: '🔵' },
-  '언론':     { slug: 'media',    emoji: '🟠' },
-  '시민단체': { slug: 'civic',    emoji: '🟢' },
-  '형사':     { slug: 'criminal', emoji: '🔴' },
-  '민사':     { slug: 'civil',    emoji: '🟣' },
+// 탭 이름·색은 코드에 박아두지 않고 DB(category_meta)에서 읽는다.
+// 대통령이 이름·색을 바꾸고 싶으면 이 표만 고치면 되고, 코드 재배포가 필요 없다.
+// 조회 실패 시를 대비한 기본값(화면이 깨지지 않도록).
+let CAT_META = {
+  '변호사':   { label: '변호사',   emoji: '🔵', color: '#2563eb', color_soft: '#eff6ff', sort_order: 1 },
+  '언론':     { label: '언론',     emoji: '🟠', color: '#ea580c', color_soft: '#fff7ed', sort_order: 2 },
+  '시민단체': { label: '시민단체', emoji: '🟢', color: '#16a34a', color_soft: '#f0fdf4', sort_order: 3 },
+  '형사':     { label: '형사',     emoji: '🔴', color: '#dc2626', color_soft: '#fef2f2', sort_order: 4 },
+  '민사':     { label: '민사',     emoji: '🟣', color: '#7c3aed', color_soft: '#f5f3ff', sort_order: 5 },
 };
+
+function renderCatTabs() {
+  const cats = Object.keys(CAT_META).sort((a, b) => CAT_META[a].sort_order - CAT_META[b].sort_order);
+  const tabs = ['<a href="index.html" class="cat-tab" data-cat="">전체</a>'];
+  cats.forEach(c => {
+    const m = CAT_META[c];
+    tabs.push(`<a href="index.html?category=${encodeURIComponent(c)}" class="cat-tab" data-cat="${escapeHtml(c)}">${m.emoji} ${escapeHtml(m.label)}</a>`);
+  });
+  document.getElementById('catTabs').innerHTML = tabs.join('');
+}
 
 function formatDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -342,7 +329,9 @@ function render(posts) {
       const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
       const dept = p.dept ? `<span class="dept">${escapeHtml(p.dept)}</span>` : '';
       const catMeta = CAT_META[p.category];
-      const cat = catMeta ? `<span class="cat cat-${catMeta.slug}">${catMeta.emoji} ${escapeHtml(p.category)}</span>` : '';
+      const cat = catMeta
+        ? `<span class="cat" style="background:${catMeta.color_soft};color:${catMeta.color}">${catMeta.emoji} ${escapeHtml(catMeta.label)}</span>`
+        : '';
       article.innerHTML = `
         <button class="post-head" aria-expanded="false">
           <span class="chevron">▶</span>
@@ -380,7 +369,7 @@ function applyDeptFilter() {
   const labels = [];
   if (activeCategory) {
     const meta = CAT_META[activeCategory];
-    labels.push(`${meta ? meta.emoji + ' ' : '🏷️ '}${activeCategory} 게시판`);
+    labels.push(`${meta ? meta.emoji + ' ' + meta.label : '🏷️ ' + activeCategory} 게시판`);
   }
   if (activeDept) labels.push(`🏷️ ${activeDept} 기록`);
 
@@ -394,8 +383,12 @@ function applyDeptFilter() {
   document.querySelectorAll('.cat-tab').forEach(a => {
     const tabCat = a.dataset.cat;
     const isActive = tabCat === (activeCategory || '');
-    const slug = tabCat ? (CAT_META[tabCat] ? CAT_META[tabCat].slug : null) : 'all';
-    a.className = 'cat-tab' + (isActive && slug ? ` active-${slug}` : '');
+    a.className = 'cat-tab';
+    a.removeAttribute('style');
+    if (!isActive) return;
+    if (!tabCat) { a.classList.add('active-all'); return; }
+    const m = CAT_META[tabCat];
+    if (m) a.setAttribute('style', `background:${m.color};color:#fff;border-color:${m.color}`);
   });
 }
 
@@ -410,15 +403,23 @@ document.getElementById('search').addEventListener('input', e => {
 });
 
 duckpo.requireLogin(async (sb) => {
-  const { data, error } = await sb.from('posts')
-    .select('id,date,time,title,summary,detail,tags,dept,category')
-    .order('date', { ascending: false })
-    .order('time', { ascending: false });
+  const [{ data, error }, catRes] = await Promise.all([
+    sb.from('posts')
+      .select('id,date,time,title,summary,detail,tags,dept,category')
+      .order('date', { ascending: false })
+      .order('time', { ascending: false }),
+    sb.from('category_meta').select('category,label,emoji,color,color_soft,sort_order'),
+  ]);
   if (error) {
     document.getElementById('board').innerHTML =
       '<div class="empty">기록을 불러오지 못했습니다. (Supabase 연결 확인 필요)</div>';
     return;
   }
+  if (!catRes.error && catRes.data && catRes.data.length) {
+    CAT_META = {};
+    catRes.data.forEach(m => { CAT_META[m.category] = m; });
+  } // 실패 시 코드에 있는 기본값을 그대로 쓴다
+  renderCatTabs();
   allPosts = data;
   applyDeptFilter();
   render(basePosts);

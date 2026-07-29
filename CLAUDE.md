@@ -36,6 +36,7 @@
 - `public.evidence_class` — **자료 성격 딱지 대장**. `case_evidence`(원본 불변)를 손대지 않고 건별 `성격`(기관원본/제3자원본/가공본/작업본/미확정)·`발송가부`·`판정근거`만 별도 적재한다. 판정은 원문 판독을 근거로 하며, 근거를 `판정근거`에 남긴다.
 - `public.v_sendable` — **외부 발송 허용 목록 뷰**. 발송본 빌드는 **반드시 이 뷰에서만** 뽑는다. 작업본·미확정은 구조적으로 배제된다.
 - `public.v_unclassified` — 딱지가 아직 안 붙은 자료. 여기 남아 있는 건은 발송 대상이 될 수 없다. **평시 0건을 유지**한다.
+- `public.category_meta` — **게시판 탭 표시 설정**(2026.7.29 신설. `category`·`label`·`emoji`·`color`·`color_soft`·`sort_order`). 탭 이름·색·순서를 바꾸고 싶다는 요청이 오면 **이 표를 UPDATE**한다 — `index.html`은 접속 시마다 이 표를 읽어 그리므로 **코드 수정·배포 없이 즉시 반영**된다. 단, 완전히 새로운 분류값 추가/삭제는 `posts_category_check` 제약을 바꿔야 하므로 별도 마이그레이션(대통령 명시적 지시 필요)이다 — 이름·색만 바꾸는 것과는 다르다.
 - `public.evidence_text` — **판독 결과 저장소**(2026.7.28 신설). `case_evidence`(원본 불변) 원문을 판독한 텍스트를 담아, 같은 문서를 매번 다시 읽지 않게 한다. `신뢰등급`(A/B/C)은 사람이 값을 넣을 수 없는 GENERATED 칼럼 — 눈으로 전 쪽을 확인해야만 **A(사실 주장 가능)**가 붙는다. `v_text_ready`(A등급만)·`v_text_todo`(미판독) 뷰 참고. 상세 규칙은 아래 "⚖️ 법률문서 작성 프로토콜" 참고.
 - 가입 차단: `auth.users` BEFORE INSERT 트리거(`block_signups_when_user_exists`) — **대통령(president) 1명 + 관리자(admin) 1명**만 허용(역할은 `raw_user_meta_data.role`), 그 외 가입 전부 거부.
 - `public.registration_status()` RPC — 로그인 화면이 어느 직책이 미등록인지 판단하는 용도 (`{president: bool, admin: bool}`만 노출).
