@@ -30,11 +30,13 @@
 ## 🗄️ Supabase 인프라 (자료의 본거지)
 
 - 프로젝트: `rspxgsytxhlsauqohdbe` (https://rspxgsytxhlsauqohdbe.supabase.co)
-- `public.posts` — 일일 기록. (id text PK "YYYY-MM-DD-NNN", date, time, title, summary(요약), detail(상세내용), tags text[], dept, created_at). RLS: authenticated 전용, anon 차단.
+- `public.posts` — 일일 기록. (id text PK "YYYY-MM-DD-NNN", date, time, title, summary(요약), detail(상세내용), tags text[], dept, category, created_at). RLS: authenticated 전용, anon 차단.
+  - `category` — **대상별 게시판 분류**(변호사/언론/시민단체/형사/민사, null=미분류). `dept`(실장 조직 축)와는 **다른 축**이니 혼동하지 않는다. 체크 제약으로 허용값이 고정되어 있어, 새 분류를 추가할 때는 마이그레이션으로 제약을 갱신해야 한다(대통령 명시적 지시 필요 — 금고 구조 변경 원칙과 동일).
 - `public.case_evidence` + 버킷 `case-files` — **사건 자료 대장(법무실장 소관, 282건)**. 비공개 버킷. **"원본 모음"이 아니라 원본과 작업본이 함께 든 자료고**이므로, 외부로 낼 때는 반드시 성격을 가려낸다.
 - `public.evidence_class` — **자료 성격 딱지 대장**. `case_evidence`(원본 불변)를 손대지 않고 건별 `성격`(기관원본/제3자원본/가공본/작업본/미확정)·`발송가부`·`판정근거`만 별도 적재한다. 판정은 원문 판독을 근거로 하며, 근거를 `판정근거`에 남긴다.
 - `public.v_sendable` — **외부 발송 허용 목록 뷰**. 발송본 빌드는 **반드시 이 뷰에서만** 뽑는다. 작업본·미확정은 구조적으로 배제된다.
 - `public.v_unclassified` — 딱지가 아직 안 붙은 자료. 여기 남아 있는 건은 발송 대상이 될 수 없다. **평시 0건을 유지**한다.
+- `public.evidence_text` — **판독 결과 저장소**(2026.7.28 신설). `case_evidence`(원본 불변) 원문을 판독한 텍스트를 담아, 같은 문서를 매번 다시 읽지 않게 한다. `신뢰등급`(A/B/C)은 사람이 값을 넣을 수 없는 GENERATED 칼럼 — 눈으로 전 쪽을 확인해야만 **A(사실 주장 가능)**가 붙는다. `v_text_ready`(A등급만)·`v_text_todo`(미판독) 뷰 참고. 상세 규칙은 아래 "⚖️ 법률문서 작성 프로토콜" 참고.
 - 가입 차단: `auth.users` BEFORE INSERT 트리거(`block_signups_when_user_exists`) — **대통령(president) 1명 + 관리자(admin) 1명**만 허용(역할은 `raw_user_meta_data.role`), 그 외 가입 전부 거부.
 - `public.registration_status()` RPC — 로그인 화면이 어느 직책이 미등록인지 판단하는 용도 (`{president: bool, admin: bool}`만 노출).
 - `public.app_settings`의 `setup_mode` + `public.set_setup_mode(bool)` — 세팅 모드 스위치. false면 관리자 로그인 차단(ban)·세션 무효화·RLS 접근 차단, true면 재개. 클라이언트 권한 없음(관리 경로 전용).
@@ -101,6 +103,24 @@
 - 코워크에는 **반복 작업 지시문**만 내린다. 판단·검증·기록이 필요한 일을 코워크에 위임하지 않는다.
 
 > 요약: **열람·수집은 코워크, 판단·집행·기록은 코드.** 이 경계가 무너지면 증거 무결성과 보안 요새가 무너진다.
+
+## ⚖️ 법률문서 작성 프로토콜 (법무실장 · 대통령 지시 2026.7.29)
+
+변호사·행정기관·언론·시민단체·형사/민사 소송 등 **대상별로 즉시 활용 가능한 수준의 문서**를 작성할 때 따르는 절차다. 원칙: **추측 금지 — 반드시 문서 근거 기반으로만 작성**하되, **토큰을 최소로 쓰면서도 신뢰·검증된 결과**여야 한다. 이를 위해 새 벡터DB를 만들지 않고, 이미 구축된 `public.evidence_text`(판독 결과 저장소·A/B/C 신뢰등급, "🔒 원본 불변 원칙" 절 참고)와 SQL 키워드 검색만으로 수행한다.
+
+**작업 순서 (토큰이 싼 단계부터)**:
+1. **자료 파악 (거의 0토큰)** — 문서 전문을 읽기 전에, `evidence_text.본문`·`case_evidence.note`에 대해 `ilike`/`pg_trgm` 키워드 검색으로 **후보 문서 목록만** 추출한다.
+2. **사용자 확인** — 후보 목록(증거번호·제목·신뢰등급)을 대통령께 제시하고 어떤 문서로 작성할지 확인받는다. 되묻지 않고 임의로 고르지 않는다.
+3. **문서 작성** — 확인된 문서만 연다.
+   - 이미 **A등급**(`evidence_text`에 있음)이면 그 본문을 그대로 근거로 쓴다 — 재판독하지 않는다.
+   - **A등급이 아니면** 그 자리에서 판독(작업 등급·검증 단계 규칙의 3단 사다리)해 A로 올린 뒤에만 사실로 인용한다. B/C등급 내용을 사실 주장에 쓰지 않는다.
+   - 문서 말미에 **근거 출처**(증거번호·신뢰등급·확인쪽수)를 명시한다. 근거 없는 문장은 쓰지 않는다.
+   - 대상별로 문체·형식을 구분한다: 변호사=법률 용어+명확한 구조, 언론/시민단체=쉬운 말, 행정기관=공문 서식, 형사/민사=절차 서식.
+4. **검토 요청** — 아래 "📄 문서 산출 지침"(수신자 기준 작성·3중 검사)과 "산출→독립감사→의견보고→대통령 승인→전달" 순서를 그대로 적용한다.
+
+**모순·누락 발견 시**: 바로 알린다 — 추측으로 메우지 않는다("🛡️ 사실관계 보고 검증 지침"과 동일 원칙).
+
+**의미검색(벡터DB, pgvector)은 지금 만들지 않는다.** 확장은 설치 가능하나 전 문서 임베딩 생성 비용이 든다. 위 키워드검색으로 실제 한계가 드러나면(동의어·문맥 검색 실패 사례 누적) 그때 대통령 승인을 받아 도입한다.
 
 ## 📄 문서 산출 지침 (모든 실장 공통 · 수신자 기준 작성 원칙 · 대통령 지시 2026.7.20)
 
@@ -302,7 +322,8 @@
    - `title`: 대화의 핵심을 담은 짧은 제목 (한 줄)
    - `summary`: **요약** — 몇 줄로 핵심만. 나중에 목록을 훑을 때 무슨 일이었는지 바로 알 수 있게.
    - `detail`: **상세내용** — 시간이 지나 잊어도 복기할 수 있도록 구체적으로: 경위, 내린 결정과 이유, 수행한 조치/명령, 바뀐 상태, 남은 일. (대화 전문은 아니되, 작업을 재현할 수 있는 수준의 세부)
-2. **Supabase `public.posts`에 INSERT** (Supabase MCP `execute_sql`, project `rspxgsytxhlsauqohdbe`):
+2. **게시판 분류(`category`) 확인 (대통령 지시 2026.7.29)**: INSERT 전, **어느 게시판(변호사/언론/시민단체/형사/민사/미분류) 소관인지 먼저 여쭙는다.** 대통령이 지정한 값만 넣는다 — 임의로 추측해 넣지 않는다. 소관이 애매하면 "미분류"(null)로 둔다.
+3. **Supabase `public.posts`에 INSERT** (Supabase MCP `execute_sql`, project `rspxgsytxhlsauqohdbe`):
    - 날짜/시간은 **한국 시간(KST)**: `TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'`
    - `NNN` 채번(같은 날짜 안에서 001부터 증가) — 먼저 조회:
      ```sql
@@ -311,14 +332,15 @@
      ```
    - INSERT (summary/detail은 dollar-quoting `$q$...$q$` / `$d$...$d$` 사용 권장 — 따옴표/줄바꿈 안전):
      ```sql
-     insert into public.posts (id, date, time, title, summary, detail, tags, dept)
-     values ('YYYY-MM-DD-NNN', 'YYYY-MM-DD', 'HH:MM', '제목', $q$요약$q$, $d$상세내용$d$, array['태그'], '실장key');
+     insert into public.posts (id, date, time, title, summary, detail, tags, dept, category)
+     values ('YYYY-MM-DD-NNN', 'YYYY-MM-DD', 'HH:MM', '제목', $q$요약$q$, $d$상세내용$d$, array['태그'], '실장key', '분류값또는NULL');
      ```
    - `tags`는 대화 주제에 맞게 1~3개 (예: "개발", "일상", "업무")
    - `dept`는 대화 주제를 담당하는 **실장 key** (예: 웹 정보 취합이면 "정보실장", 법률이면 "법무실장"). 판단이 어려우면 "기록실장". 조직도(`org.html`)가 이 값으로 실장별 기록 건수를 센다.
+   - `category`는 위 2단계에서 확인받은 값(변호사/언론/시민단체/형사/민사) 또는 `null`.
    - INSERT 후 확인: `select id, title from public.posts where id = '<새 id>';`
-3. **commit & push는 기록에는 불필요** — 기록은 Supabase에만 저장되며 사이트에 즉시 반영된다. commit & push는 **코드(html/js/워크플로/CLAUDE.md 등) 변경이 있을 때만** 수행한다.
-4. **다이어그램/알림**: 기록이 저장되었음을 알리고 페이지 주소(https://jarvisai2507.github.io/duckpo/ · 로그인 필요)를 전한다. 조직 구조가 바뀌었거나 사용자가 원하면 조직도/요약 다이어그램을 그려서 보여준다.
+4. **commit & push는 기록에는 불필요** — 기록은 Supabase에만 저장되며 사이트에 즉시 반영된다. commit & push는 **코드(html/js/워크플로/CLAUDE.md 등) 변경이 있을 때만** 수행한다.
+5. **다이어그램/알림**: 기록이 저장되었음을 알리고 페이지 주소(https://jarvisai2507.github.io/duckpo/ · 로그인 필요)를 전한다. 조직 구조가 바뀌었거나 사용자가 원하면 조직도/요약 다이어그램을 그려서 보여준다.
 
 주의:
 - 기존 기록 행을 UPDATE/DELETE 하지 말 것 (사용자가 명시적으로 요청한 경우 제외).

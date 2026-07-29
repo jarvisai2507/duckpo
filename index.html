@@ -14,6 +14,11 @@
     --accent-soft: #eff6ff;
     --border: #e5e7eb;
     --shadow: 0 1px 3px rgba(0,0,0,.06);
+    --cat-lawyer: #2563eb;   --cat-lawyer-soft: #eff6ff;
+    --cat-media: #ea580c;    --cat-media-soft: #fff7ed;
+    --cat-civic: #16a34a;    --cat-civic-soft: #f0fdf4;
+    --cat-criminal: #dc2626; --cat-criminal-soft: #fef2f2;
+    --cat-civil: #7c3aed;    --cat-civil-soft: #f5f3ff;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -25,6 +30,11 @@
       --accent-soft: #1e2a3d;
       --border: #2c333c;
       --shadow: 0 1px 3px rgba(0,0,0,.4);
+      --cat-lawyer: #60a5fa;   --cat-lawyer-soft: #1e2a3d;
+      --cat-media: #fb923c;    --cat-media-soft: #3a2410;
+      --cat-civic: #4ade80;    --cat-civic-soft: #14291c;
+      --cat-criminal: #f87171; --cat-criminal-soft: #3a1a1a;
+      --cat-civil: #a78bfa;    --cat-civil-soft: #271f3d;
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -142,6 +152,30 @@
     white-space: nowrap; font-weight: 600;
   }
 
+  .cat {
+    font-size: .75rem; padding: 2px 8px; border-radius: 999px;
+    white-space: nowrap; font-weight: 600;
+  }
+  .cat-lawyer   { background: var(--cat-lawyer-soft);   color: var(--cat-lawyer); }
+  .cat-media    { background: var(--cat-media-soft);    color: var(--cat-media); }
+  .cat-civic    { background: var(--cat-civic-soft);    color: var(--cat-civic); }
+  .cat-criminal { background: var(--cat-criminal-soft); color: var(--cat-criminal); }
+  .cat-civil    { background: var(--cat-civil-soft);    color: var(--cat-civil); }
+
+  .cat-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .cat-tab {
+    padding: 6px 14px; border-radius: 999px;
+    text-decoration: none; font-size: .85rem; font-weight: 600;
+    border: 1px solid var(--border); color: var(--text-sub);
+    background: var(--card);
+  }
+  .cat-tab.active-all       { background: var(--accent);        color: #fff; border-color: var(--accent); }
+  .cat-tab.active-lawyer    { background: var(--cat-lawyer);    color: #fff; border-color: var(--cat-lawyer); }
+  .cat-tab.active-media     { background: var(--cat-media);     color: #fff; border-color: var(--cat-media); }
+  .cat-tab.active-civic     { background: var(--cat-civic);     color: #fff; border-color: var(--cat-civic); }
+  .cat-tab.active-criminal  { background: var(--cat-criminal);  color: #fff; border-color: var(--cat-criminal); }
+  .cat-tab.active-civil     { background: var(--cat-civil);     color: #fff; border-color: var(--cat-civil); }
+
   /* 로그인 게이트 */
   #authGate {
     position: fixed; inset: 0; z-index: 1000;
@@ -230,6 +264,15 @@
     <p>날짜별로 하루의 대화와 일들을 기록하는 게시판</p>
   </header>
 
+  <div class="cat-tabs" id="catTabs">
+    <a href="index.html" class="cat-tab" data-cat="">전체</a>
+    <a href="index.html?category=변호사" class="cat-tab" data-cat="변호사">🔵 변호사</a>
+    <a href="index.html?category=언론" class="cat-tab" data-cat="언론">🟠 언론</a>
+    <a href="index.html?category=시민단체" class="cat-tab" data-cat="시민단체">🟢 시민단체</a>
+    <a href="index.html?category=형사" class="cat-tab" data-cat="형사">🔴 형사</a>
+    <a href="index.html?category=민사" class="cat-tab" data-cat="민사">🟣 민사</a>
+  </div>
+
   <div class="filter-banner" id="filterBanner">
     <span id="filterLabel"></span>
     <a href="index.html">전체 보기 ✕</a>
@@ -250,6 +293,14 @@
 <script>
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 let allPosts = [];
+
+const CAT_META = {
+  '변호사':   { slug: 'lawyer',   emoji: '🔵' },
+  '언론':     { slug: 'media',    emoji: '🟠' },
+  '시민단체': { slug: 'civic',    emoji: '🟢' },
+  '형사':     { slug: 'criminal', emoji: '🔴' },
+  '민사':     { slug: 'civil',    emoji: '🟣' },
+};
 
 function formatDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -290,11 +341,13 @@ function render(posts) {
       article.className = 'post';
       const tags = (p.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
       const dept = p.dept ? `<span class="dept">${escapeHtml(p.dept)}</span>` : '';
+      const catMeta = CAT_META[p.category];
+      const cat = catMeta ? `<span class="cat cat-${catMeta.slug}">${catMeta.emoji} ${escapeHtml(p.category)}</span>` : '';
       article.innerHTML = `
         <button class="post-head" aria-expanded="false">
           <span class="chevron">▶</span>
           <span class="post-title">${escapeHtml(p.title)}</span>
-          ${dept}${tags}
+          ${cat}${dept}${tags}
           <span class="post-time">${escapeHtml(p.time || '')}</span>
         </button>
         <div class="post-body">${escapeHtml(p.summary)}${p.detail ? `<div class="post-detail"><div class="post-detail-sep">─ 상세내용 ─</div>${escapeHtml(p.detail)}</div>` : ''}</div>`;
@@ -315,18 +368,35 @@ function escapeHtml(s) {
 }
 
 let activeDept = new URLSearchParams(location.search).get('dept');
-let basePosts = [];  // dept 필터 적용 후 기준 집합 (검색은 이 집합 위에서)
+let activeCategory = new URLSearchParams(location.search).get('category');
+let basePosts = [];  // dept·category 필터 적용 후 기준 집합 (검색은 이 집합 위에서)
 
 function applyDeptFilter() {
   const banner = document.getElementById('filterBanner');
-  if (activeDept) {
-    basePosts = allPosts.filter(p => p.dept === activeDept);
-    document.getElementById('filterLabel').textContent = `🏷️ ${activeDept} 기록만 보기`;
+  basePosts = allPosts;
+  if (activeDept) basePosts = basePosts.filter(p => p.dept === activeDept);
+  if (activeCategory) basePosts = basePosts.filter(p => p.category === activeCategory);
+
+  const labels = [];
+  if (activeCategory) {
+    const meta = CAT_META[activeCategory];
+    labels.push(`${meta ? meta.emoji + ' ' : '🏷️ '}${activeCategory} 게시판`);
+  }
+  if (activeDept) labels.push(`🏷️ ${activeDept} 기록`);
+
+  if (labels.length) {
+    document.getElementById('filterLabel').textContent = labels.join(' · ') + '만 보기';
     banner.classList.add('on');
   } else {
-    basePosts = allPosts;
     banner.classList.remove('on');
   }
+
+  document.querySelectorAll('.cat-tab').forEach(a => {
+    const tabCat = a.dataset.cat;
+    const isActive = tabCat === (activeCategory || '');
+    const slug = tabCat ? (CAT_META[tabCat] ? CAT_META[tabCat].slug : null) : 'all';
+    a.className = 'cat-tab' + (isActive && slug ? ` active-${slug}` : '');
+  });
 }
 
 document.getElementById('search').addEventListener('input', e => {
@@ -341,7 +411,7 @@ document.getElementById('search').addEventListener('input', e => {
 
 duckpo.requireLogin(async (sb) => {
   const { data, error } = await sb.from('posts')
-    .select('id,date,time,title,summary,detail,tags,dept')
+    .select('id,date,time,title,summary,detail,tags,dept,category')
     .order('date', { ascending: false })
     .order('time', { ascending: false });
   if (error) {
