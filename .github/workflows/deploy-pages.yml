@@ -39,11 +39,30 @@ jobs:
           echo "Pages Source가 'GitHub Actions'가 아니거나 Pages가 비활성 상태입니다."
           echo "→ Actions 배포는 건너뜁니다. (branch 소스라면 main push만으로 자동 배포됩니다.)"
 
+      # 배포물에는 화면에 필요한 파일만 담는다.
+      # 저장소 루트를 그대로 올리면 CLAUDE.md·docs/·.claude/ 등 내부 문서가
+      # 정적 파일로 공개된다(로그인 게이트는 화면 표시만 통제하므로 막지 못한다).
+      - name: Stage site files (allowlist)
+        if: steps.cp.outcome == 'success'
+        run: |
+          set -euo pipefail
+          rm -rf _site && mkdir -p _site
+          for f in index.html org.html auth.js; do
+            test -f "$f" || { echo "::error::배포 대상 누락: $f"; exit 1; }
+            cp "$f" _site/
+          done
+          # 내부 문서가 섞여 들어갔는지 기계 확인 (섞이면 배포 중단)
+          if find _site -type f \
+               ! -name index.html ! -name org.html ! -name auth.js | grep -q .; then
+            echo "::error::_site 에 허용목록 외 파일이 있다"; find _site -type f; exit 1
+          fi
+          echo "배포 파일 $(find _site -type f | wc -l)건:"; find _site -type f -printf '  %f (%s bytes)\n'
+
       - name: Upload artifact
         if: steps.cp.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - id: deployment
         name: Deploy to GitHub Pages
