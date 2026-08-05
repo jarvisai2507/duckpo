@@ -145,23 +145,33 @@ function renderDispositions(rows) {
     </div>`;
 }
 
+function issueBadge(i, readySet, gapMap) {
+  // 상태가 '유효'가 아니면(붕괴·보류 등) v_issue_ready/v_issue_gap 둘 다에서
+  // 빠지므로 아래 준비도 판정보다 먼저 걸러야 한다 — 안 그러면 무너진
+  // 쟁점이 "즉시 주장 가능"으로 잘못 뜬다(2026.8.5 독립검증 적발).
+  if (i.상태 !== '유효') {
+    const cls = i.상태 === '붕괴' ? 'danger' : 'warn';
+    return `<span class="badge ${cls}">상태: ${esc(i.상태)}</span>`;
+  }
+  if (readySet.has(i.issue_no)) return `<span class="badge ok">즉시 주장 가능</span>`;
+  if (gapMap.has(i.issue_no)) return `<span class="badge warn">미확정 ${gapMap.get(i.issue_no)}건</span>`;
+  return `<span class="badge neutral">확인 필요</span>`;
+}
+
 function renderIssues(issues, readySet, gapMap) {
   const cards = issues.map(i => {
-    const gapCount = gapMap.get(i.issue_no);
-    const readyBadge = (gapCount === undefined)
-      ? `<span class="badge ok">즉시 주장 가능</span>`
-      : `<span class="badge warn">미확정 ${gapCount}건</span>`;
     const targets = (i.대상 || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
     const factList = (i.필요사실 || []).map(f => `<span class="tag">${esc(f)}</span>`).join('') || '없음';
     return `
       <div class="card issue-card">
         <div class="card-head">
           <span class="no">${esc(i.issue_no)}</span>
-          ${readyBadge}
+          ${issueBadge(i, readySet, gapMap)}
         </div>
         <div class="card-title" style="margin-top:6px; font-weight:500; font-size:.9rem;">${esc(i.쟁점)}</div>
         <div class="card-body" data-toggle="issue">${targets}<span style="float:right">자세히 ▾</span></div>
         <dl class="issue-detail">
+          <dt>상태</dt><dd>${esc(i.상태)}</dd>
           <dt>필요사실 (${(i.필요사실 || []).length}건)</dt><dd>${factList}</dd>
           <dt>강도</dt><dd>${esc(i.강도 || '미기재')}</dd>
           <dt>반박위험</dt><dd>${esc(i.반박위험 || '미기재')}</dd>
@@ -185,66 +195,74 @@ function renderConflicts(rows) {
     </div>`).join('');
 }
 
+function sectionError(label) {
+  return `<div class="empty-note">${esc(label)} 조회 실패 — 나머지 항목은 정상 표시됩니다.</div>`;
+}
+
 duckpo.requireLogin(async (sb) => {
   const content = document.getElementById('content');
-  try {
-    const [axisRes, intakeRes, deadlineRes, dispRes, conflictRes, issueRes, readyRes, gapRes] = await Promise.all([
-      sb.from('v_axis_board').select('*').single(),
-      sb.from('v_intake_status').select('*').single(),
-      sb.from('v_deadline_critical_watch').select('*').order('잔여일', { ascending: true }),
-      sb.from('disposition').select('*').order('처분일', { ascending: true }),
-      sb.from('fact_conflict').select('*').order('id', { ascending: true }),
-      sb.from('issue').select('issue_no, 상태, 쟁점, 대상, 필요사실, 강도, 반박위험, 법적근거').order('issue_no', { ascending: true }),
-      sb.from('v_issue_ready').select('issue_no'),
-      sb.from('v_issue_gap').select('issue_no, 미확정사실'),
-    ]);
 
-    const errs = [axisRes, intakeRes, deadlineRes, dispRes, conflictRes, issueRes, readyRes, gapRes]
-      .map(r => r.error).filter(Boolean);
-    if (errs.length) throw errs[0];
+  // 쿼리 하나가 실패해도 나머지 구간은 그대로 보여준다(all-or-nothing 금지) —
+  // 이 화면은 장애 중에도 봐야 할 상황판이므로, 뷰 이름 변경·권한 누락 같은
+  // 개별 오류로 전체가 빈 화면이 되면 안 된다(2026.8.5 독립검증 지적).
+  const results = await Promise.allSettled([
+    sb.from('v_axis_board').select('*').single(),
+    sb.from('v_intake_status').select('*').single(),
+    sb.from('v_deadline_critical_watch').select('*').order('잔여일', { ascending: true }),
+    sb.from('disposition').select('*').order('처분일', { ascending: true }),
+    sb.from('fact_conflict').select('*').order('id', { ascending: true }),
+    sb.from('issue').select('issue_no, 상태, 쟁점, 대상, 필요사실, 강도, 반박위험, 법적근거').order('issue_no', { ascending: true }),
+    sb.from('v_issue_ready').select('issue_no'),
+    sb.from('v_issue_gap').select('issue_no, 미확정사실'),
+  ]);
+  const [axisR, intakeR, deadlineR, dispR, conflictR, issueR, readyR, gapR] = results;
+  const ok = r => r.status === 'fulfilled' && !r.value.error;
+  const data = r => r.value.data;
 
-    const axis = axisRes.data;
-    const intake = intakeRes.data;
-    const readySet = new Set((readyRes.data || []).map(r => r.issue_no));
-    const gapMap = new Map((gapRes.data || []).map(r => [r.issue_no, (r.미확정사실 || []).length]));
+  const kpiOk = ok(axisR) && ok(intakeR);
+  const issueOk = ok(issueR) && ok(readyR) && ok(gapR);
 
-    document.getElementById('asof').textContent = '조회 시각: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const readySet = ok(readyR) ? new Set(data(readyR).map(r => r.issue_no)) : new Set();
+  // v_issue_gap은 쟁점당 1행이 아니라 "미확정 사실 1건당 1행"이다(unnest 기반) —
+  // 필요사실 배열이 아니라 fact_no 문자열 하나씩이므로, 건수는 issue_no별로
+  // 행을 세어서 계산해야 한다(2026.8.5 독립검증 적발 — 이전엔 문자열
+  // .length로 글자수를 세고 있었다).
+  const gapMap = new Map();
+  if (ok(gapR)) data(gapR).forEach(r => gapMap.set(r.issue_no, (gapMap.get(r.issue_no) || 0) + 1));
 
-    content.className = '';
-    content.innerHTML = `
-      ${renderKpis(axis, intake)}
+  document.getElementById('asof').textContent = '조회 시각: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-      <section>
-        <h2>⏰ 기한 시계</h2>
-        <div class="sub">불가역 기한(제소기간·시효 등) — 도과·임박 순. "미확정"은 변호사 확인 전까지 대외 문서에 단정 인용하지 않습니다.</div>
-        ${renderDeadlines(deadlineRes.data || [])}
-      </section>
+  content.className = '';
+  content.innerHTML = `
+    ${kpiOk ? renderKpis(data(axisR), data(intakeR)) : sectionError('현황 요약(KPI)')}
 
-      <section>
-        <h2>📜 처분 현황</h2>
-        <div class="sub">사건의 기본 단위인 행정처분 대장 — 어느 것이 아직 살아있는 처분인지.</div>
-        ${renderDispositions(dispRes.data || [])}
-      </section>
+    <section>
+      <h2>⏰ 기한 시계</h2>
+      <div class="sub">불가역 기한(제소기간·시효 등) — 도과·임박 순. "미확정"은 변호사 확인 전까지 대외 문서에 단정 인용하지 않습니다.</div>
+      ${ok(deadlineR) ? renderDeadlines(data(deadlineR) || []) : sectionError('기한 시계')}
+    </section>
 
-      <section>
-        <h2>🧩 쟁점 준비도</h2>
-        <div class="sub">쟁점 ${issueRes.data.length}건 중 즉시 주장 가능 ${readySet.size}건. 대상(변호사·행정·언론 등)은 이 쟁점을 어디에 쓸 수 있는지를 뜻합니다.</div>
-        ${renderIssues(issueRes.data || [], readySet, gapMap)}
-      </section>
+    <section>
+      <h2>📜 처분 현황</h2>
+      <div class="sub">사건의 기본 단위인 행정처분 대장 — 어느 것이 아직 살아있는 처분인지.</div>
+      ${ok(dispR) ? renderDispositions(data(dispR) || []) : sectionError('처분 현황')}
+    </section>
 
-      <section>
-        <h2>⚠️ 사실 상충 경보</h2>
-        <div class="sub">한 사실이 서로 다른 쟁점에서 반대로 작동하는 경우 — 같은 문서에 함께 쓸 때 반박 위험을 미리 다뤄야 합니다.</div>
-        ${renderConflicts(conflictRes.data || [])}
-      </section>
-    `;
-    content.querySelectorAll('.issue-card [data-toggle="issue"]').forEach(el => {
-      el.addEventListener('click', () => el.closest('.issue-card').classList.toggle('open'));
-    });
-  } catch (e) {
-    content.className = '';
-    content.innerHTML = `<div class="empty-note">불러오기 실패: ${esc(e.message || String(e))}</div>`;
-  }
+    <section>
+      <h2>🧩 쟁점 준비도</h2>
+      <div class="sub">${issueOk ? `쟁점 ${data(issueR).length}건 중 즉시 주장 가능 ${readySet.size}건. 대상(변호사·행정·언론 등)은 이 쟁점을 어디에 쓸 수 있는지를 뜻합니다.` : ''}</div>
+      ${issueOk ? renderIssues(data(issueR) || [], readySet, gapMap) : sectionError('쟁점 준비도')}
+    </section>
+
+    <section>
+      <h2>⚠️ 사실 상충 경보</h2>
+      <div class="sub">한 사실이 서로 다른 쟁점에서 반대로 작동하는 경우 — 같은 문서에 함께 쓸 때 반박 위험을 미리 다뤄야 합니다.</div>
+      ${ok(conflictR) ? renderConflicts(data(conflictR) || []) : sectionError('사실 상충 경보')}
+    </section>
+  `;
+  content.querySelectorAll('.issue-card [data-toggle="issue"]').forEach(el => {
+    el.addEventListener('click', () => el.closest('.issue-card').classList.toggle('open'));
+  });
 });
 </script>
 </body>

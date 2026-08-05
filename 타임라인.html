@@ -108,7 +108,10 @@ function buildItems(dispositions, facts, deadlines) {
   facts.forEach(f => items.push({
     date: f.일자, type: '사실',
     label: `${f.주체 ? f.주체 + ' — ' : ''}${f.행위}`,
-    detail: `${f.fact_no}${f.일자정밀도 && f.일자정밀도 !== '정확' ? ` · 일자 ${f.일자정밀도}` : ''}`,
+    // fact.일자정밀도의 CHECK 허용값은 '일'(정확)·'월'·'년'·'기간'·'미상'뿐이다
+    // — '정확'은 애초에 존재할 수 없는 값이라 이전 비교식은 항상 참이 되어
+    // 정밀한 날짜에도 캐비엇이 붙었다(2026.8.5 독립검증 적발).
+    detail: `${f.fact_no}${f.일자정밀도 && f.일자정밀도 !== '일' ? ` · 일자 ${f.일자정밀도}` : ''}`,
   }));
   deadlines.forEach(d => items.push({
     date: d.만료일, type: '기한',
@@ -129,16 +132,18 @@ function renderTimeline(items) {
   });
   const years = Object.keys(byYear).sort();
 
-  let insertedNow = false;
+  // "오늘" 표시는 연도 경계에만 넣는다(연도 안 중간 항목 사이에 끼우지 않음) —
+  // 그렇게 하면 종류 필터로 해당 연도 그룹 전체가 숨겨질 때 표시선까지 함께
+  // 사라져, 필터 선택에 따라 "오늘"이 보였다 안 보였다 하는 비일관이 생겼다
+  // (2026.8.5 독립검증 적발). 연도 그룹 바깥 독립 요소로 두면 그 문제가 없다.
+  let markerInserted = false;
   const parts = [];
   years.forEach(y => {
-    const rows = byYear[y].map(i => {
-      let marker = '';
-      if (!insertedNow && i.date >= today) {
-        marker = '<div class="now-marker">오늘</div>';
-        insertedNow = true;
-      }
-      return marker + `
+    if (!markerInserted && y >= today.slice(0, 4)) {
+      parts.push('<div class="now-marker">오늘</div>');
+      markerInserted = true;
+    }
+    const rows = byYear[y].map(i => `
         <div class="tl-item" data-type="${esc(i.type)}">
           <div class="tl-dot"></div>
           <div class="tl-body">
@@ -146,15 +151,14 @@ function renderTimeline(items) {
             <div class="tl-label">${esc(i.label)}</div>
             <div class="tl-detail">${esc(i.detail)}</div>
           </div>
-        </div>`;
-    }).join('');
+        </div>`).join('');
     parts.push(`
       <div class="year-group" data-year="${esc(y)}">
         <div class="year-head"><h2>${esc(y)}년</h2><span class="year-count">${byYear[y].length}건</span></div>
         ${rows}
       </div>`);
   });
-  if (!insertedNow) parts.push('<div class="now-marker">오늘</div>');
+  if (!markerInserted) parts.push('<div class="now-marker">오늘</div>');
   return parts.join('');
 }
 
@@ -170,30 +174,38 @@ function applyFilter(type) {
 
 duckpo.requireLogin(async (sb) => {
   const content = document.getElementById('content');
-  try {
-    const [dispRes, factRes, deadlineRes] = await Promise.all([
-      sb.from('disposition').select('disposition_no,처분일,처분청,처분내용,현재상태'),
-      sb.from('fact').select('fact_no,일자,일자정밀도,주체,행위,확정도').eq('확정도', '확정'),
-      sb.from('deadline_critical').select('종류,만료일,기산근거,상태,법적확정여부'),
-    ]);
-    const errs = [dispRes, factRes, deadlineRes].map(r => r.error).filter(Boolean);
-    if (errs.length) throw errs[0];
 
-    const items = buildItems(dispRes.data || [], factRes.data || [], deadlineRes.data || []);
-    content.className = '';
-    content.innerHTML = renderTimeline(items);
+  // 세 원천(처분·확정사실·기한)은 서로 독립적이다 — 하나가 실패해도 나머지
+  // 둘로 만든 연표는 그대로 보여준다(all-or-nothing 금지, 2026.8.5 독립검증 지적).
+  const [dispRes, factRes, deadlineRes] = await Promise.allSettled([
+    sb.from('disposition').select('disposition_no,처분일,처분청,처분내용,현재상태'),
+    sb.from('fact').select('fact_no,일자,일자정밀도,주체,행위,확정도').eq('확정도', '확정'),
+    sb.from('deadline_critical').select('종류,만료일,기산근거,상태,법적확정여부'),
+  ]);
+  const ok = r => r.status === 'fulfilled' && !r.value.error;
+  const failed = [];
+  if (!ok(dispRes)) failed.push('처분');
+  if (!ok(factRes)) failed.push('확정사실');
+  if (!ok(deadlineRes)) failed.push('기한');
 
-    document.getElementById('filterRow').addEventListener('click', e => {
-      const chip = e.target.closest('.filter-chip');
-      if (!chip) return;
-      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      applyFilter(chip.dataset.type);
-    });
-  } catch (e) {
-    content.className = '';
-    content.innerHTML = `<div class="empty-note">불러오기 실패: ${esc(e.message || String(e))}</div>`;
-  }
+  const items = buildItems(
+    ok(dispRes) ? dispRes.value.data || [] : [],
+    ok(factRes) ? factRes.value.data || [] : [],
+    ok(deadlineRes) ? deadlineRes.value.data || [] : [],
+  );
+
+  content.className = '';
+  content.innerHTML =
+    (failed.length ? `<div class="empty-note">${esc(failed.join('·'))} 조회 실패 — 나머지 항목은 정상 표시됩니다.</div>` : '')
+    + renderTimeline(items);
+
+  document.getElementById('filterRow').addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    applyFilter(chip.dataset.type);
+  });
 });
 </script>
 </body>

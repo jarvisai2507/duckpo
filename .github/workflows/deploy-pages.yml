@@ -46,16 +46,29 @@ jobs:
       # 이름을 하나하나 나열하던 방식(2026.7.24)은 새 페이지를 만들 때마다
       # 이 파일을 같이 고쳐야 했고, 실제로 2026.8.5 상황판.html이 이 목록에
       # 빠진 채 push되어 레포에는 있지만 Pages에는 안 뜨는 상태가 발생했다.
-      # 최상위 .html/.js/.css 패턴으로 바꾼다 — docs/·.claude/·scripts/·
-      # supabase/·CLAUDE.md·README.md·node_modules는 최상위 .html/.js/.css가
-      # 아니므로 이 글롭에 애초에 걸리지 않아 유출 안전성은 그대로 유지된다.
-      - name: Stage site files (pattern allowlist)
+      #
+      # 순수 확장자 패턴(*.html 전부)으로 바꿨더니 그 즉시 반대 방향 결함이
+      # 발견됐다(같은 날 독립검증) — auto-publish.yml이 사람 검토 없이 즉시
+      # main에 머지·배포하는 구조라, 세션 중 실수로 만든 최상위 스크래치
+      # .html이 하나라도 남아 push되면 그것도 자동으로 공개된다(확장자
+      # 안전판은 .html 자체는 걸러내지 못한다). 그래서 .html은 "로그인
+      # 게이트를 실제로 담고 있는 파일"만 배포 대상으로 좁힌다 — 진짜 화면
+      # 페이지는 전부 #authGate를 갖고 있고, 스크래치 파일은 없다. js/css는
+      # 이름 3개뿐이라 그대로 패턴 유지.
+      - name: Stage site files (pattern allowlist + gate check)
         if: steps.cp.outcome == 'success'
         run: |
           set -euo pipefail
           rm -rf _site && mkdir -p _site
           shopt -s nullglob
-          for f in *.html auth.js theme.css nav.js; do
+          for f in *.html; do
+            if grep -q 'id="authGate"' "$f"; then
+              cp "$f" _site/
+            else
+              echo "::warning::건너뜀(로그인 게이트 없음, 배포 대상 아님): $f"
+            fi
+          done
+          for f in auth.js theme.css nav.js; do
             [ -f "$f" ] && cp "$f" _site/
           done
           test -f _site/index.html || { echo "::error::index.html 누락 — 배포 중단"; exit 1; }
