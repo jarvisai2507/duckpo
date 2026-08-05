@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>덕포 상황판</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1f2328;
+    --text-sub: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --border: #e5e7eb;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+
+    --danger: #dc2626;
+    --danger-soft: #fef2f2;
+    --warn: #d97706;
+    --warn-soft: #fef3e2;
+    --ok: #16a34a;
+    --ok-soft: #f0fdf4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418;
+      --card: #1b2027;
+      --text: #e6e8eb;
+      --text-sub: #9aa3ad;
+      --accent: #60a5fa;
+      --accent-soft: #1e2a3d;
+      --border: #2c333c;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+
+      --danger: #f87171;
+      --danger-soft: #3a1a1a;
+      --warn: #fbbf24;
+      --warn-soft: #3a2f1a;
+      --ok: #4ade80;
+      --ok-soft: #16281c;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  nav { display: flex; gap: 8px; margin-bottom: 18px; }
+  nav a {
+    padding: 6px 14px; border-radius: 999px;
+    text-decoration: none; font-size: .9rem;
+    color: var(--text-sub); border: 1px solid var(--border);
+  }
+  nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  header { margin-bottom: 22px; }
+  header h1 { font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
+  header p { color: var(--text-sub); font-size: .9rem; margin-top: 4px; }
+  header .asof { color: var(--text-sub); font-size: .78rem; margin-top: 2px; }
+
+  /* KPI 스트립 */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px; margin-bottom: 30px;
+  }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  .kpi .num { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .label { font-size: .74rem; color: var(--text-sub); margin-top: 2px; }
+  .kpi.danger .num { color: var(--danger); }
+  .kpi.warn .num { color: var(--warn); }
+  .kpi.ok .num { color: var(--ok); }
+
+  section { margin-bottom: 34px; }
+  section > h2 {
+    font-size: 1.1rem; display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+  }
+  section > .sub { font-size: .82rem; color: var(--text-sub); margin-bottom: 14px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow);
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card-title { font-weight: 600; flex: 1; min-width: 160px; }
+  .card-body { margin-top: 8px; font-size: .88rem; color: var(--text-sub); }
+
+  .badge {
+    display: inline-block; font-size: .74rem; font-weight: 600;
+    padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .badge.danger { background: var(--danger-soft); color: var(--danger); }
+  .badge.warn   { background: var(--warn-soft); color: var(--warn); }
+  .badge.ok     { background: var(--ok-soft); color: var(--ok); }
+  .badge.neutral{ background: var(--accent-soft); color: var(--accent); }
+
+  .tag {
+    display: inline-block; font-size: .72rem;
+    background: var(--accent-soft); color: var(--accent);
+    padding: 2px 9px; border-radius: 999px; margin: 2px 3px 0 0;
+  }
+
+  .deadline-item { display: flex; align-items: baseline; gap: 12px; }
+  .deadline-item .dday { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 62px; }
+  .deadline-item .dday.danger { color: var(--danger); }
+  .deadline-item .dday.warn { color: var(--warn); }
+  .deadline-item .dday.ok { color: var(--ok); }
+
+  .issue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .issue-card .card-head { justify-content: space-between; }
+  .issue-card .no { color: var(--accent); font-weight: 700; font-size: .82rem; }
+
+  .empty-note {
+    color: var(--text-sub); font-size: .85rem;
+    padding: 14px; text-align: center;
+    border: 1px dashed var(--border); border-radius: 12px;
+  }
+
+  .disp-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .disp-table th, .disp-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .disp-table th { color: var(--text-sub); font-weight: 600; font-size: .78rem; }
+  .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+
+  .loading { text-align: center; color: var(--text-sub); padding: 60px 0; }
+  footer { margin-top: 40px; text-align: center; color: var(--text-sub); font-size: .8rem; }
+
+  /* 로그인 게이트 (공통) */
+  #authGate {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .gate-card {
+    width: 100%; max-width: 360px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 28px 24px;
+  }
+  .gate-card h2 { font-size: 1.2rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .gate-card p { font-size: .85rem; color: var(--text-sub); margin-bottom: 16px; }
+  .gate-card input {
+    width: 100%; margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text);
+    font-size: .95rem; outline: none;
+  }
+  .gate-card input:focus { border-color: var(--accent); }
+  .gate-card button {
+    width: 100%; padding: 11px;
+    border: none; border-radius: 10px;
+    background: var(--accent); color: #fff;
+    font-size: .95rem; font-weight: 600; cursor: pointer;
+  }
+  .gate-card button:disabled { opacity: .6; cursor: wait; }
+  .gate-err { display: none; margin-top: 12px; font-size: .82rem; color: #dc2626; }
+  #gateRoles { display: flex; flex-direction: column; gap: 10px; }
+  .role-btn {
+    width: 100%; padding: 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text);
+    font-size: .95rem; font-weight: 600; cursor: pointer;
+    font-family: inherit; text-align: center;
+  }
+  .role-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .gate-links { margin-top: 14px; text-align: center; }
+  .gate-links a { font-size: .82rem; color: var(--accent); text-decoration: none; }
+  .logout-btn {
+    margin-left: auto;
+    padding: 6px 14px; border-radius: 999px;
+    font-size: .9rem; cursor: pointer;
+    color: var(--text-sub); border: 1px solid var(--border);
+    background: none; font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<div id="authGate">
+  <div class="gate-card">
+    <h2><span>🔐</span> <span id="gateTitle">로그인</span></h2>
+    <p id="gateDesc">확인 중...</p>
+    <div id="gateRoles" style="display:none">
+      <button type="button" class="role-btn" id="roleP">🏛️ 대통령 등록</button>
+      <button type="button" class="role-btn" id="roleA">🛠️ 관리자 등록</button>
+    </div>
+    <div id="gateForm" style="display:none">
+      <input type="email" id="gateEmail" placeholder="이메일" autocomplete="username">
+      <input type="password" id="gatePw" placeholder="비밀번호" autocomplete="current-password">
+      <div id="gatePw2Wrap" style="display:none">
+        <input type="password" id="gatePw2" placeholder="비밀번호 확인" autocomplete="new-password">
+      </div>
+      <button id="gateBtn">로그인</button>
+    </div>
+    <div class="gate-links"><a href="#" id="gateSwitch" style="display:none"></a></div>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <nav>
+    <a href="index.html">📋 게시판</a>
+    <a href="org.html">🏛️ 조직도</a>
+    <a href="상황판.html" class="active">🧭 상황판</a>
+    <button class="logout-btn" onclick="duckpo.logout()">로그아웃</button>
+  </nav>
+
+  <header>
+    <h1><span>🧭</span> 상황판</h1>
+    <p>사건 전체 현황 — 기한 · 처분 · 쟁점 준비도 · 사실 상충을 한눈에</p>
+    <p class="asof" id="asof"></p>
+  </header>
+
+  <div id="content" class="loading">불러오는 중...</div>
+
+  <footer>duckpo · 덕포산업단지 상황판 · 매 조회 시 실시간 계산</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script>
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function ddayBadgeClass(days) {
+  if (days < 0) return 'danger';
+  if (days <= 14) return 'danger';
+  if (days <= 30) return 'warn';
+  return 'ok';
+}
+function ddayText(days) {
+  if (days < 0) return `D+${Math.abs(days)} 도과`;
+  if (days === 0) return 'D-Day';
+  return `D-${days}`;
+}
+
+function kpiCard(num, label, tone) {
+  return `<div class="kpi ${tone||''}"><div class="num">${num}</div><div class="label">${esc(label)}</div></div>`;
+}
+
+function renderKpis(axis, intake) {
+  const cells = [
+    kpiCard(axis.기한도과_뼈대, '기한 도과', axis.기한도과_뼈대 > 0 ? 'danger' : 'ok'),
+    kpiCard(axis.기한임박_뼈대, '기한 임박(30일내)', axis.기한임박_뼈대 > 0 ? 'warn' : 'ok'),
+    kpiCard(axis.유효쟁점, '유효 쟁점', 'ok'),
+    kpiCard(axis.미해소상충, '미해소 사실상충', axis.미해소상충 > 0 ? 'warn' : 'ok'),
+    kpiCard(axis.미연결사실, '쟁점 미연결 사실', axis.미연결사실 > 0 ? 'warn' : 'ok'),
+    kpiCard(intake.신규미판독, '신규 미판독', intake.신규미판독 > 0 ? 'danger' : 'ok'),
+    kpiCard(intake.기록미판독, '기록 미판독', intake.기록미판독 > 0 ? 'warn' : 'ok'),
+  ];
+  return `<div class="kpi-grid">${cells.join('')}</div>`;
+}
+
+function renderDeadlines(rows) {
+  if (!rows.length) return `<div class="empty-note">등재된 불가역 기한이 없습니다.</div>`;
+  return rows.map(r => {
+    const cls = ddayBadgeClass(r.잔여일);
+    const confirm = r.법적확정여부 === '변호사확인완료'
+      ? `<span class="badge ok">변호사확인완료</span>`
+      : `<span class="badge neutral">미확정 — 단정 인용 금지</span>`;
+    return `
+      <div class="card">
+        <div class="card-head deadline-item">
+          <div class="dday ${cls}">${ddayText(r.잔여일)}</div>
+          <div class="card-title">${esc(r.종류)} — ${esc(r.만료일)} 만료</div>
+          ${confirm}
+        </div>
+        <div class="card-body">
+          <div>기산: ${esc(r.기산일)} (${esc(r.기산근거)})</div>
+          <div>만료근거: ${esc(r.만료근거)}</div>
+          ${r.비고 ? `<div style="margin-top:4px">${esc(r.비고)}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function statusBadgeClass(s) {
+  if (s === '유효') return 'ok';
+  if (s === '취소' || s === '실효') return 'danger';
+  return 'neutral';
+}
+
+function renderDispositions(rows) {
+  if (!rows.length) return `<div class="empty-note">등재된 처분이 없습니다.</div>`;
+  const trs = rows.map(r => `
+    <tr>
+      <td>${esc(r.처분일)}</td>
+      <td>${esc(r.disposition_no)}</td>
+      <td>${esc(r.처분청)}</td>
+      <td>${esc(r.처분내용)}</td>
+      <td><span class="badge ${statusBadgeClass(r.현재상태)}">${esc(r.현재상태)}</span></td>
+    </tr>`).join('');
+  return `
+    <div class="table-wrap">
+      <table class="disp-table">
+        <thead><tr><th>처분일</th><th>번호</th><th>처분청</th><th>내용</th><th>상태</th></tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderIssues(issues, readySet, gapMap) {
+  const cards = issues.map(i => {
+    const gapCount = gapMap.get(i.issue_no);
+    const readyBadge = (gapCount === undefined)
+      ? `<span class="badge ok">즉시 주장 가능</span>`
+      : `<span class="badge warn">미확정 ${gapCount}건</span>`;
+    const targets = (i.대상 || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    return `
+      <div class="card issue-card">
+        <div class="card-head">
+          <span class="no">${esc(i.issue_no)}</span>
+          ${readyBadge}
+        </div>
+        <div class="card-title" style="margin-top:6px; font-weight:500; font-size:.9rem;">${esc(i.쟁점)}</div>
+        <div class="card-body">${targets}</div>
+      </div>`;
+  }).join('');
+  return `<div class="issue-grid">${cards}</div>`;
+}
+
+function renderConflicts(rows) {
+  const open = rows.filter(r => !r.해소여부);
+  if (!open.length) return `<div class="empty-note">미해소 사실상충이 없습니다.</div>`;
+  return open.map(r => `
+    <div class="card">
+      <div class="card-head">
+        <span class="badge warn">${esc(r.충돌유형)}</span>
+        <div class="card-title">${esc(r.fact_a)} ↔ ${esc(r.fact_b)}</div>
+      </div>
+      <div class="card-body">${esc(r.설명)}</div>
+    </div>`).join('');
+}
+
+duckpo.requireLogin(async (sb) => {
+  const content = document.getElementById('content');
+  try {
+    const [axisRes, intakeRes, deadlineRes, dispRes, conflictRes, issueRes, readyRes, gapRes] = await Promise.all([
+      sb.from('v_axis_board').select('*').single(),
+      sb.from('v_intake_status').select('*').single(),
+      sb.from('v_deadline_critical_watch').select('*').order('잔여일', { ascending: true }),
+      sb.from('disposition').select('*').order('처분일', { ascending: true }),
+      sb.from('fact_conflict').select('*').order('id', { ascending: true }),
+      sb.from('issue').select('issue_no, 상태, 쟁점, 대상').order('issue_no', { ascending: true }),
+      sb.from('v_issue_ready').select('issue_no'),
+      sb.from('v_issue_gap').select('issue_no, 미확정사실'),
+    ]);
+
+    const errs = [axisRes, intakeRes, deadlineRes, dispRes, conflictRes, issueRes, readyRes, gapRes]
+      .map(r => r.error).filter(Boolean);
+    if (errs.length) throw errs[0];
+
+    const axis = axisRes.data;
+    const intake = intakeRes.data;
+    const readySet = new Set((readyRes.data || []).map(r => r.issue_no));
+    const gapMap = new Map((gapRes.data || []).map(r => [r.issue_no, (r.미확정사실 || []).length]));
+
+    document.getElementById('asof').textContent = '조회 시각: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+    content.className = '';
+    content.innerHTML = `
+      ${renderKpis(axis, intake)}
+
+      <section>
+        <h2>⏰ 기한 시계</h2>
+        <div class="sub">불가역 기한(제소기간·시효 등) — 도과·임박 순. "미확정"은 변호사 확인 전까지 대외 문서에 단정 인용하지 않습니다.</div>
+        ${renderDeadlines(deadlineRes.data || [])}
+      </section>
+
+      <section>
+        <h2>📜 처분 현황</h2>
+        <div class="sub">사건의 기본 단위인 행정처분 대장 — 어느 것이 아직 살아있는 처분인지.</div>
+        ${renderDispositions(dispRes.data || [])}
+      </section>
+
+      <section>
+        <h2>🧩 쟁점 준비도</h2>
+        <div class="sub">쟁점 ${issueRes.data.length}건 중 즉시 주장 가능 ${readySet.size}건. 대상(변호사·행정·언론 등)은 이 쟁점을 어디에 쓸 수 있는지를 뜻합니다.</div>
+        ${renderIssues(issueRes.data || [], readySet, gapMap)}
+      </section>
+
+      <section>
+        <h2>⚠️ 사실 상충 경보</h2>
+        <div class="sub">한 사실이 서로 다른 쟁점에서 반대로 작동하는 경우 — 같은 문서에 함께 쓸 때 반박 위험을 미리 다뤄야 합니다.</div>
+        ${renderConflicts(conflictRes.data || [])}
+      </section>
+    `;
+  } catch (e) {
+    content.className = '';
+    content.innerHTML = `<div class="empty-note">불러오기 실패: ${esc(e.message || String(e))}</div>`;
+  }
+});
+</script>
+</body>
+</html>
