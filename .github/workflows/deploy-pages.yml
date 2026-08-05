@@ -42,19 +42,26 @@ jobs:
       # 배포물에는 화면에 필요한 파일만 담는다.
       # 저장소 루트를 그대로 올리면 CLAUDE.md·docs/·.claude/ 등 내부 문서가
       # 정적 파일로 공개된다(로그인 게이트는 화면 표시만 통제하므로 막지 못한다).
-      - name: Stage site files (allowlist)
+      #
+      # 이름을 하나하나 나열하던 방식(2026.7.24)은 새 페이지를 만들 때마다
+      # 이 파일을 같이 고쳐야 했고, 실제로 2026.8.5 상황판.html이 이 목록에
+      # 빠진 채 push되어 레포에는 있지만 Pages에는 안 뜨는 상태가 발생했다.
+      # 최상위 .html/.js/.css 패턴으로 바꾼다 — docs/·.claude/·scripts/·
+      # supabase/·CLAUDE.md·README.md·node_modules는 최상위 .html/.js/.css가
+      # 아니므로 이 글롭에 애초에 걸리지 않아 유출 안전성은 그대로 유지된다.
+      - name: Stage site files (pattern allowlist)
         if: steps.cp.outcome == 'success'
         run: |
           set -euo pipefail
           rm -rf _site && mkdir -p _site
-          for f in index.html org.html auth.js; do
-            test -f "$f" || { echo "::error::배포 대상 누락: $f"; exit 1; }
-            cp "$f" _site/
+          shopt -s nullglob
+          for f in *.html auth.js theme.css nav.js; do
+            [ -f "$f" ] && cp "$f" _site/
           done
-          # 내부 문서가 섞여 들어갔는지 기계 확인 (섞이면 배포 중단)
-          if find _site -type f \
-               ! -name index.html ! -name org.html ! -name auth.js | grep -q .; then
-            echo "::error::_site 에 허용목록 외 파일이 있다"; find _site -type f; exit 1
+          test -f _site/index.html || { echo "::error::index.html 누락 — 배포 중단"; exit 1; }
+          # 안전판: 허용 확장자(html/js/css) 외 파일이 섞였는지 기계 확인
+          if find _site -type f ! -name '*.html' ! -name '*.js' ! -name '*.css' | grep -q .; then
+            echo "::error::_site 에 허용 확장자 외 파일이 있다"; find _site -type f; exit 1
           fi
           echo "배포 파일 $(find _site -type f | wc -l)건:"; find _site -type f -printf '  %f (%s bytes)\n'
 

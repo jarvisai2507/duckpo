@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>덕포 타임라인</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+  /* 타임라인 고유 스타일만 남긴다 — 공용 토큰·nav·card·badge는 theme.css */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    font-size: .85rem; font-weight: 600;
+    border: 1px solid var(--border); color: var(--text-sub);
+    background: var(--card); user-select: none;
+  }
+  .filter-chip.active { color: #fff; border-color: transparent; }
+  .filter-chip[data-type="처분"].active { background: var(--accent); }
+  .filter-chip[data-type="사실"].active { background: #7c3aed; }
+  .filter-chip[data-type="기한"].active { background: var(--warn); }
+  .filter-chip[data-type=""].active { background: var(--text-sub); }
+
+  .year-group { margin-bottom: 28px; }
+  .year-head {
+    display: flex; align-items: baseline; gap: 10px;
+    padding-bottom: 8px; margin-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .year-head h2 { font-size: 1.15rem; color: var(--accent); }
+  .year-head .year-count { color: var(--text-sub); font-size: .8rem; }
+
+  .tl-item { display: flex; gap: 14px; margin-bottom: 12px; }
+  .tl-dot {
+    flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%;
+    margin-top: 6px; background: var(--accent);
+  }
+  .tl-item[data-type="사실"] .tl-dot { background: #7c3aed; }
+  .tl-item[data-type="기한"] .tl-dot { background: var(--warn); }
+  .tl-body { flex: 1; min-width: 0; }
+  .tl-date { font-size: .78rem; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+  .tl-label { font-weight: 600; margin-top: 2px; }
+  .tl-detail { font-size: .85rem; color: var(--text-sub); margin-top: 4px; }
+
+  .now-marker {
+    display: flex; align-items: center; gap: 10px;
+    margin: 10px 0 24px; color: var(--danger); font-size: .82rem; font-weight: 700;
+  }
+  .now-marker::before, .now-marker::after { content: ""; flex: 1; height: 2px; background: var(--danger); opacity: .35; }
+</style>
+</head>
+<body>
+<div id="authGate">
+  <div class="gate-card">
+    <h2><span>🔐</span> <span id="gateTitle">로그인</span></h2>
+    <p id="gateDesc">확인 중...</p>
+    <div id="gateRoles" style="display:none">
+      <button type="button" class="role-btn" id="roleP">🏛️ 대통령 등록</button>
+      <button type="button" class="role-btn" id="roleA">🛠️ 관리자 등록</button>
+    </div>
+    <div id="gateForm" style="display:none">
+      <input type="email" id="gateEmail" placeholder="이메일" autocomplete="username">
+      <input type="password" id="gatePw" placeholder="비밀번호" autocomplete="current-password">
+      <div id="gatePw2Wrap" style="display:none">
+        <input type="password" id="gatePw2" placeholder="비밀번호 확인" autocomplete="new-password">
+      </div>
+      <button id="gateBtn">로그인</button>
+    </div>
+    <div class="gate-links"><a href="#" id="gateSwitch" style="display:none"></a></div>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <nav id="siteNav"></nav>
+
+  <header>
+    <h1><span>🗓️</span> 타임라인</h1>
+    <p>사건 자체의 연표 — 처분·확정사실·기한을 시간순으로. (게시판은 "우리가 무슨 작업을 했는지", 이 화면은 "사건에서 언제 무슨 일이 있었는지"입니다)</p>
+  </header>
+
+  <div class="filter-row" id="filterRow">
+    <span class="filter-chip active" data-type="">전체</span>
+    <span class="filter-chip" data-type="처분">📜 처분</span>
+    <span class="filter-chip" data-type="사실">📌 확정사실</span>
+    <span class="filter-chip" data-type="기한">⏰ 기한</span>
+  </div>
+
+  <div id="content" class="loading">불러오는 중...</div>
+
+  <footer>duckpo · 덕포산업단지 타임라인 · disposition·fact(확정)·deadline_critical 통합</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function buildItems(dispositions, facts, deadlines) {
+  const items = [];
+  dispositions.forEach(d => items.push({
+    date: d.처분일, type: '처분',
+    label: `${d.처분내용}`,
+    detail: `${d.처분청} · ${d.disposition_no} · 현재상태 ${d.현재상태}`,
+  }));
+  facts.forEach(f => items.push({
+    date: f.일자, type: '사실',
+    label: `${f.주체 ? f.주체 + ' — ' : ''}${f.행위}`,
+    detail: `${f.fact_no}${f.일자정밀도 && f.일자정밀도 !== '정확' ? ` · 일자 ${f.일자정밀도}` : ''}`,
+  }));
+  deadlines.forEach(d => items.push({
+    date: d.만료일, type: '기한',
+    label: `${d.종류} 만료`,
+    detail: `${d.기산근거} · 상태 ${d.상태}${d.법적확정여부 !== '변호사확인완료' ? ' · 미확정' : ''}`,
+  }));
+  return items.filter(i => i.date).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function renderTimeline(items) {
+  if (!items.length) return '<div class="empty-note">표시할 항목이 없습니다.</div>';
+
+  const today = new Date().toISOString().slice(0, 10);
+  const byYear = {};
+  items.forEach(i => {
+    const y = i.date.slice(0, 4);
+    (byYear[y] ??= []).push(i);
+  });
+  const years = Object.keys(byYear).sort();
+
+  let insertedNow = false;
+  const parts = [];
+  years.forEach(y => {
+    const rows = byYear[y].map(i => {
+      let marker = '';
+      if (!insertedNow && i.date >= today) {
+        marker = '<div class="now-marker">오늘</div>';
+        insertedNow = true;
+      }
+      return marker + `
+        <div class="tl-item" data-type="${esc(i.type)}">
+          <div class="tl-dot"></div>
+          <div class="tl-body">
+            <div class="tl-date">${esc(i.date)} · <span class="badge neutral">${esc(i.type)}</span></div>
+            <div class="tl-label">${esc(i.label)}</div>
+            <div class="tl-detail">${esc(i.detail)}</div>
+          </div>
+        </div>`;
+    }).join('');
+    parts.push(`
+      <div class="year-group" data-year="${esc(y)}">
+        <div class="year-head"><h2>${esc(y)}년</h2><span class="year-count">${byYear[y].length}건</span></div>
+        ${rows}
+      </div>`);
+  });
+  if (!insertedNow) parts.push('<div class="now-marker">오늘</div>');
+  return parts.join('');
+}
+
+function applyFilter(type) {
+  document.querySelectorAll('.tl-item').forEach(el => {
+    el.style.display = (!type || el.dataset.type === type) ? '' : 'none';
+  });
+  document.querySelectorAll('.year-group').forEach(g => {
+    const anyVisible = Array.from(g.querySelectorAll('.tl-item')).some(el => el.style.display !== 'none');
+    g.style.display = anyVisible ? '' : 'none';
+  });
+}
+
+duckpo.requireLogin(async (sb) => {
+  const content = document.getElementById('content');
+  try {
+    const [dispRes, factRes, deadlineRes] = await Promise.all([
+      sb.from('disposition').select('disposition_no,처분일,처분청,처분내용,현재상태'),
+      sb.from('fact').select('fact_no,일자,일자정밀도,주체,행위,확정도').eq('확정도', '확정'),
+      sb.from('deadline_critical').select('종류,만료일,기산근거,상태,법적확정여부'),
+    ]);
+    const errs = [dispRes, factRes, deadlineRes].map(r => r.error).filter(Boolean);
+    if (errs.length) throw errs[0];
+
+    const items = buildItems(dispRes.data || [], factRes.data || [], deadlineRes.data || []);
+    content.className = '';
+    content.innerHTML = renderTimeline(items);
+
+    document.getElementById('filterRow').addEventListener('click', e => {
+      const chip = e.target.closest('.filter-chip');
+      if (!chip) return;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      applyFilter(chip.dataset.type);
+    });
+  } catch (e) {
+    content.className = '';
+    content.innerHTML = `<div class="empty-note">불러오기 실패: ${esc(e.message || String(e))}</div>`;
+  }
+});
+</script>
+</body>
+</html>

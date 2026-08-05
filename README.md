@@ -21,11 +21,15 @@ Claude와 대화하다가 **"대화끝"** 또는 **"오늘끝"** 이라고 말�
 
 ### 구조
 
-- `index.html` — 게시판 페이지 (로그인 게이트, 날짜별 그룹, 검색, 펼침/접힘, 실장별 필터)
+- `index.html` — 게시판 페이지 (로그인 게이트, 날짜별 그룹, 검색, 펼침/접힘, 실장별·카테고리별 필터)
 - `org.html` — 조직도 페이지 (로그인 게이트, 실장 체계 시각화 + 실장별 기록 건수)
+- `상황판.html` — 상황판 페이지 (기한·처분·쟁점 준비도·사실 상충을 한눈에)
+- `타임라인.html` — 타임라인 페이지 (처분·확정사실·기한을 시간순으로 — 게시판과 달리 "사건 자체"의 연표)
+- `theme.css` — 공용 디자인 토큰 + 컴포넌트(nav·card·badge·kpi·게이트 등). 페이지 늘 때마다 CSS를 복붙하지 않도록 공용화(2026.8.5).
+- `nav.js` — 공용 네비게이션. 페이지 목록을 배열 하나로 관리 — 새 페이지 추가 시 이 파일 한 곳만 고치면 전 페이지 nav에 반영됨.
 - `auth.js` — 로그인/최초 등록 게이트 (Supabase 인증)
 - `.github/workflows/auto-publish.yml` — 작업 브랜치(`claude/**`) push 시 자동으로 `main`에 머지
-- `.github/workflows/deploy-pages.yml` — `main` 갱신 시 GitHub Pages 자동 배포
+- `.github/workflows/deploy-pages.yml` — `main` 갱신 시 GitHub Pages 자동 배포. 최상위 `*.html`+`auth.js`/`theme.css`/`nav.js`만 패턴으로 배포(내부 문서·스크립트·DB 자료는 최상위 html/js/css가 아니므로 애초에 대상이 아님) — 새 페이지를 추가해도 이 워크플로를 고칠 필요가 없다.
 - `CLAUDE.md` — 조직 체계 정의 & 대화 기록 규칙
 
 ### 자동 공개 흐름

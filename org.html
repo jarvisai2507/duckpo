@@ -4,57 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>덕포 조직도</title>
+<link rel="stylesheet" href="theme.css">
 <style>
-  :root {
-    --bg: #f6f7f9;
-    --card: #ffffff;
-    --text: #1f2328;
-    --text-sub: #6b7280;
-    --accent: #2563eb;
-    --accent-soft: #eff6ff;
-    --border: #e5e7eb;
-    --line: #b6bdc7;
-    --audit: #d97706;
-    --audit-soft: #fef3e2;
-    --shadow: 0 1px 3px rgba(0,0,0,.08);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111418;
-      --card: #1b2027;
-      --text: #e6e8eb;
-      --text-sub: #9aa3ad;
-      --accent: #60a5fa;
-      --accent-soft: #1e2a3d;
-      --border: #2c333c;
-      --line: #3a434e;
-      --audit: #fbbf24;
-      --audit-soft: #3a2f1a;
-      --shadow: 0 1px 3px rgba(0,0,0,.4);
-    }
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-  }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
-
-  nav { display: flex; gap: 8px; margin-bottom: 18px; }
-  nav a {
-    padding: 6px 14px; border-radius: 999px;
-    text-decoration: none; font-size: .9rem;
-    color: var(--text-sub); border: 1px solid var(--border);
-  }
-  nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-  header { margin-bottom: 24px; }
-  header h1 { font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
-  header p { color: var(--text-sub); font-size: .9rem; margin-top: 4px; }
-
-  /* 조직도 */
+  /* 조직도 고유 스타일만 남긴다 — 공용 토큰·nav·게이트는 theme.css */
   .org { display: flex; flex-direction: column; align-items: center; }
 
   .node {
@@ -128,8 +80,6 @@
   .legend li { margin: 4px 0; list-style: none; }
   .legend b { color: var(--text); }
 
-  footer { margin-top: 40px; text-align: center; color: var(--text-sub); font-size: .8rem; }
-
   @media (max-width: 560px) {
     .tier2 { flex-direction: column; gap: 16px; align-items: center; }
     .tier2 .audit-wrap { flex-direction: column; }
@@ -137,59 +87,6 @@
     .check-line::after { top: 50%; left: 8px; transform: translateY(-50%); }
     .tier3::before { display: none; }
     .tier3 .node::before { display: none; }
-  }
-
-  /* 로그인 게이트 */
-  #authGate {
-    position: fixed; inset: 0; z-index: 1000;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-  }
-  .gate-card {
-    width: 100%; max-width: 360px;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; box-shadow: var(--shadow);
-    padding: 28px 24px;
-  }
-  .gate-card h2 { font-size: 1.2rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-  .gate-card p { font-size: .85rem; color: var(--text-sub); margin-bottom: 16px; }
-  .gate-card input {
-    width: 100%; margin-bottom: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--border); border-radius: 10px;
-    background: var(--bg); color: var(--text);
-    font-size: .95rem; outline: none;
-  }
-  .gate-card input:focus { border-color: var(--accent); }
-  .gate-card button {
-    width: 100%; padding: 11px;
-    border: none; border-radius: 10px;
-    background: var(--accent); color: #fff;
-    font-size: .95rem; font-weight: 600; cursor: pointer;
-  }
-  .gate-card button:disabled { opacity: .6; cursor: wait; }
-  .gate-err {
-    display: none; margin-top: 12px;
-    font-size: .82rem; color: #dc2626;
-  }
-  #gateRoles { display: flex; flex-direction: column; gap: 10px; }
-  .role-btn {
-    width: 100%; padding: 12px;
-    border: 1px solid var(--border); border-radius: 10px;
-    background: var(--bg); color: var(--text);
-    font-size: .95rem; font-weight: 600; cursor: pointer;
-    font-family: inherit; text-align: center;
-  }
-  .role-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
-  .gate-links { margin-top: 14px; text-align: center; }
-  .gate-links a { font-size: .82rem; color: var(--accent); text-decoration: none; }
-  .logout-btn {
-    margin-left: auto;
-    padding: 6px 14px; border-radius: 999px;
-    font-size: .9rem; cursor: pointer;
-    color: var(--text-sub); border: 1px solid var(--border);
-    background: none; font-family: inherit;
   }
 </style>
 </head>
@@ -216,12 +113,7 @@
 </div>
 
 <div class="wrap">
-  <nav>
-    <a href="index.html">📋 게시판</a>
-    <a href="org.html" class="active">🏛️ 조직도</a>
-    <a href="상황판.html">🧭 상황판</a>
-    <button class="logout-btn" onclick="duckpo.logout()">로그아웃</button>
-  </nav>
+  <nav id="siteNav"></nav>
 
   <header>
     <h1><span>🏛️</span> 조직도</h1>
@@ -244,6 +136,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth.js"></script>
+<script src="nav.js"></script>
 <script>
 const PRESIDENT = { key: '대통령', emoji: '🏛️', title: '대통령 (본인)', role: '최종 의사결정권자' };
 const SECRETARY = { key: '비서실장', emoji: '🗂️', title: '비서실장', role: '상시 응대 창구 · 각 실장 보고 종합 → 대통령 보고' };

@@ -1,0 +1,195 @@
+/* duckpo 공용 디자인 토큰 + 컴포넌트 (2026-08-05 신설)
+ * 게시판·조직도·상황판·타임라인이 공유하는 색 변수·nav·card·badge·kpi·게이트 스타일.
+ * 페이지별 <style>에는 그 페이지 고유의 레이아웃만 남긴다.
+ */
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1f2328;
+  --text-sub: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --border: #e5e7eb;
+  --line: #b6bdc7;
+  --audit: #d97706;
+  --audit-soft: #fef3e2;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --warn: #d97706;
+  --warn-soft: #fef3e2;
+  --ok: #16a34a;
+  --ok-soft: #f0fdf4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --card: #1b2027;
+    --text: #e6e8eb;
+    --text-sub: #9aa3ad;
+    --accent: #60a5fa;
+    --accent-soft: #1e2a3d;
+    --border: #2c333c;
+    --line: #3a434e;
+    --audit: #fbbf24;
+    --audit-soft: #3a2f1a;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+
+    --danger: #f87171;
+    --danger-soft: #3a1a1a;
+    --warn: #fbbf24;
+    --warn-soft: #3a2f1a;
+    --ok: #4ade80;
+    --ok-soft: #16281c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111418; --card: #1b2027; --text: #e6e8eb; --text-sub: #9aa3ad;
+  --accent: #60a5fa; --accent-soft: #1e2a3d; --border: #2c333c; --line: #3a434e;
+  --audit: #fbbf24; --audit-soft: #3a2f1a; --shadow: 0 1px 3px rgba(0,0,0,.4);
+  --danger: #f87171; --danger-soft: #3a1a1a; --warn: #fbbf24; --warn-soft: #3a2f1a;
+  --ok: #4ade80; --ok-soft: #16281c;
+}
+:root[data-theme="light"] {
+  --bg: #f6f7f9; --card: #ffffff; --text: #1f2328; --text-sub: #6b7280;
+  --accent: #2563eb; --accent-soft: #eff6ff; --border: #e5e7eb; --line: #b6bdc7;
+  --audit: #d97706; --audit-soft: #fef3e2; --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --danger: #dc2626; --danger-soft: #fef2f2; --warn: #d97706; --warn-soft: #fef3e2;
+  --ok: #16a34a; --ok-soft: #f0fdf4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+.wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+
+/* 네비게이션 (nav.js가 내부에 채운다) */
+nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; align-items: center; }
+nav a {
+  padding: 6px 14px; border-radius: 999px;
+  text-decoration: none; font-size: .9rem;
+  color: var(--text-sub); border: 1px solid var(--border);
+}
+nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.logout-btn {
+  margin-left: auto;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: .9rem; cursor: pointer;
+  color: var(--text-sub); border: 1px solid var(--border);
+  background: none; font-family: inherit;
+}
+
+header { margin-bottom: 22px; }
+header h1 { font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
+header h1 .icon { font-size: 1.8rem; }
+header p { color: var(--text-sub); font-size: .9rem; margin-top: 4px; }
+header .asof { color: var(--text-sub); font-size: .78rem; margin-top: 2px; }
+
+/* 카드 · 배지 · 태그 (상황판·타임라인 공용) */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow);
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-title { font-weight: 600; flex: 1; min-width: 160px; }
+.card-body { margin-top: 8px; font-size: .88rem; color: var(--text-sub); }
+
+.badge {
+  display: inline-block; font-size: .74rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+}
+.badge.danger { background: var(--danger-soft); color: var(--danger); }
+.badge.warn   { background: var(--warn-soft); color: var(--warn); }
+.badge.ok     { background: var(--ok-soft); color: var(--ok); }
+.badge.neutral{ background: var(--accent-soft); color: var(--accent); }
+
+.tag {
+  display: inline-block; font-size: .72rem;
+  background: var(--accent-soft); color: var(--accent);
+  padding: 2px 9px; border-radius: 999px; margin: 2px 3px 0 0;
+}
+
+.empty-note {
+  color: var(--text-sub); font-size: .85rem;
+  padding: 14px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 12px;
+}
+.loading { text-align: center; color: var(--text-sub); padding: 60px 0; }
+footer { margin-top: 40px; text-align: center; color: var(--text-sub); font-size: .8rem; }
+
+/* KPI 스트립 (상황판) */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px; margin-bottom: 30px;
+}
+.kpi {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+}
+.kpi .num { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi .label { font-size: .74rem; color: var(--text-sub); margin-top: 2px; }
+.kpi.danger .num { color: var(--danger); }
+.kpi.warn .num { color: var(--warn); }
+.kpi.ok .num { color: var(--ok); }
+
+/* 표 (처분 현황 등) */
+.table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.disp-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.disp-table th, .disp-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.disp-table th { color: var(--text-sub); font-weight: 600; font-size: .78rem; }
+
+section { margin-bottom: 34px; }
+section > h2 {
+  font-size: 1.1rem; display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+}
+section > .sub { font-size: .82rem; color: var(--text-sub); margin-bottom: 14px; }
+
+/* 로그인 게이트 (공통) */
+#authGate {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.gate-card {
+  width: 100%; max-width: 360px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; box-shadow: var(--shadow);
+  padding: 28px 24px;
+}
+.gate-card h2 { font-size: 1.2rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.gate-card p { font-size: .85rem; color: var(--text-sub); margin-bottom: 16px; }
+.gate-card input {
+  width: 100%; margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text);
+  font-size: .95rem; outline: none;
+}
+.gate-card input:focus { border-color: var(--accent); }
+.gate-card button {
+  width: 100%; padding: 11px;
+  border: none; border-radius: 10px;
+  background: var(--accent); color: #fff;
+  font-size: .95rem; font-weight: 600; cursor: pointer;
+}
+.gate-card button:disabled { opacity: .6; cursor: wait; }
+.gate-err { display: none; margin-top: 12px; font-size: .82rem; color: #dc2626; }
+#gateRoles { display: flex; flex-direction: column; gap: 10px; }
+.role-btn {
+  width: 100%; padding: 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text);
+  font-size: .95rem; font-weight: 600; cursor: pointer;
+  font-family: inherit; text-align: center;
+}
+.role-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.gate-links { margin-top: 14px; text-align: center; }
+.gate-links a { font-size: .82rem; color: var(--accent); text-decoration: none; }

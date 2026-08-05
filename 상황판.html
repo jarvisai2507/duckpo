@@ -4,111 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>덕포 상황판</title>
+<link rel="stylesheet" href="theme.css">
 <style>
-  :root {
-    --bg: #f6f7f9;
-    --card: #ffffff;
-    --text: #1f2328;
-    --text-sub: #6b7280;
-    --accent: #2563eb;
-    --accent-soft: #eff6ff;
-    --border: #e5e7eb;
-    --shadow: 0 1px 3px rgba(0,0,0,.08);
-
-    --danger: #dc2626;
-    --danger-soft: #fef2f2;
-    --warn: #d97706;
-    --warn-soft: #fef3e2;
-    --ok: #16a34a;
-    --ok-soft: #f0fdf4;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111418;
-      --card: #1b2027;
-      --text: #e6e8eb;
-      --text-sub: #9aa3ad;
-      --accent: #60a5fa;
-      --accent-soft: #1e2a3d;
-      --border: #2c333c;
-      --shadow: 0 1px 3px rgba(0,0,0,.4);
-
-      --danger: #f87171;
-      --danger-soft: #3a1a1a;
-      --warn: #fbbf24;
-      --warn-soft: #3a2f1a;
-      --ok: #4ade80;
-      --ok-soft: #16281c;
-    }
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-  }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
-
-  nav { display: flex; gap: 8px; margin-bottom: 18px; }
-  nav a {
-    padding: 6px 14px; border-radius: 999px;
-    text-decoration: none; font-size: .9rem;
-    color: var(--text-sub); border: 1px solid var(--border);
-  }
-  nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-  header { margin-bottom: 22px; }
-  header h1 { font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
-  header p { color: var(--text-sub); font-size: .9rem; margin-top: 4px; }
-  header .asof { color: var(--text-sub); font-size: .78rem; margin-top: 2px; }
-
-  /* KPI 스트립 */
-  .kpi-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px; margin-bottom: 30px;
-  }
-  .kpi {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
-  }
-  .kpi .num { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .kpi .label { font-size: .74rem; color: var(--text-sub); margin-top: 2px; }
-  .kpi.danger .num { color: var(--danger); }
-  .kpi.warn .num { color: var(--warn); }
-  .kpi.ok .num { color: var(--ok); }
-
-  section { margin-bottom: 34px; }
-  section > h2 {
-    font-size: 1.1rem; display: flex; align-items: center; gap: 8px;
-    margin-bottom: 4px;
-  }
-  section > .sub { font-size: .82rem; color: var(--text-sub); margin-bottom: 14px; }
-
-  .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; box-shadow: var(--shadow);
-    padding: 14px 16px; margin-bottom: 10px;
-  }
-  .card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .card-title { font-weight: 600; flex: 1; min-width: 160px; }
-  .card-body { margin-top: 8px; font-size: .88rem; color: var(--text-sub); }
-
-  .badge {
-    display: inline-block; font-size: .74rem; font-weight: 600;
-    padding: 3px 10px; border-radius: 999px; white-space: nowrap;
-  }
-  .badge.danger { background: var(--danger-soft); color: var(--danger); }
-  .badge.warn   { background: var(--warn-soft); color: var(--warn); }
-  .badge.ok     { background: var(--ok-soft); color: var(--ok); }
-  .badge.neutral{ background: var(--accent-soft); color: var(--accent); }
-
-  .tag {
-    display: inline-block; font-size: .72rem;
-    background: var(--accent-soft); color: var(--accent);
-    padding: 2px 9px; border-radius: 999px; margin: 2px 3px 0 0;
-  }
-
+  /* 상황판 고유 스타일만 남긴다 — 공용 토큰·nav·card·badge·kpi·게이트는 theme.css */
   .deadline-item { display: flex; align-items: baseline; gap: 12px; }
   .deadline-item .dday { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 62px; }
   .deadline-item .dday.danger { color: var(--danger); }
@@ -118,70 +16,12 @@
   .issue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
   .issue-card .card-head { justify-content: space-between; }
   .issue-card .no { color: var(--accent); font-weight: 700; font-size: .82rem; }
-
-  .empty-note {
-    color: var(--text-sub); font-size: .85rem;
-    padding: 14px; text-align: center;
-    border: 1px dashed var(--border); border-radius: 12px;
-  }
-
-  .disp-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-  .disp-table th, .disp-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  .disp-table th { color: var(--text-sub); font-weight: 600; font-size: .78rem; }
-  .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
-
-  .loading { text-align: center; color: var(--text-sub); padding: 60px 0; }
-  footer { margin-top: 40px; text-align: center; color: var(--text-sub); font-size: .8rem; }
-
-  /* 로그인 게이트 (공통) */
-  #authGate {
-    position: fixed; inset: 0; z-index: 1000;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-  }
-  .gate-card {
-    width: 100%; max-width: 360px;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; box-shadow: var(--shadow);
-    padding: 28px 24px;
-  }
-  .gate-card h2 { font-size: 1.2rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-  .gate-card p { font-size: .85rem; color: var(--text-sub); margin-bottom: 16px; }
-  .gate-card input {
-    width: 100%; margin-bottom: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--border); border-radius: 10px;
-    background: var(--bg); color: var(--text);
-    font-size: .95rem; outline: none;
-  }
-  .gate-card input:focus { border-color: var(--accent); }
-  .gate-card button {
-    width: 100%; padding: 11px;
-    border: none; border-radius: 10px;
-    background: var(--accent); color: #fff;
-    font-size: .95rem; font-weight: 600; cursor: pointer;
-  }
-  .gate-card button:disabled { opacity: .6; cursor: wait; }
-  .gate-err { display: none; margin-top: 12px; font-size: .82rem; color: #dc2626; }
-  #gateRoles { display: flex; flex-direction: column; gap: 10px; }
-  .role-btn {
-    width: 100%; padding: 12px;
-    border: 1px solid var(--border); border-radius: 10px;
-    background: var(--bg); color: var(--text);
-    font-size: .95rem; font-weight: 600; cursor: pointer;
-    font-family: inherit; text-align: center;
-  }
-  .role-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
-  .gate-links { margin-top: 14px; text-align: center; }
-  .gate-links a { font-size: .82rem; color: var(--accent); text-decoration: none; }
-  .logout-btn {
-    margin-left: auto;
-    padding: 6px 14px; border-radius: 999px;
-    font-size: .9rem; cursor: pointer;
-    color: var(--text-sub); border: 1px solid var(--border);
-    background: none; font-family: inherit;
-  }
+  .issue-card .card-body { cursor: pointer; }
+  .issue-detail { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: .82rem; color: var(--text-sub); }
+  .issue-card.open .issue-detail { display: block; }
+  .issue-detail dt { font-weight: 600; color: var(--text); margin-top: 6px; }
+  .issue-detail dt:first-child { margin-top: 0; }
+  .issue-detail dd { margin-left: 0; }
 </style>
 </head>
 <body>
@@ -207,12 +47,7 @@
 </div>
 
 <div class="wrap">
-  <nav>
-    <a href="index.html">📋 게시판</a>
-    <a href="org.html">🏛️ 조직도</a>
-    <a href="상황판.html" class="active">🧭 상황판</a>
-    <button class="logout-btn" onclick="duckpo.logout()">로그아웃</button>
-  </nav>
+  <nav id="siteNav"></nav>
 
   <header>
     <h1><span>🧭</span> 상황판</h1>
@@ -227,6 +62,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth.js"></script>
+<script src="nav.js"></script>
 <script>
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -316,6 +152,7 @@ function renderIssues(issues, readySet, gapMap) {
       ? `<span class="badge ok">즉시 주장 가능</span>`
       : `<span class="badge warn">미확정 ${gapCount}건</span>`;
     const targets = (i.대상 || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const factList = (i.필요사실 || []).map(f => `<span class="tag">${esc(f)}</span>`).join('') || '없음';
     return `
       <div class="card issue-card">
         <div class="card-head">
@@ -323,7 +160,13 @@ function renderIssues(issues, readySet, gapMap) {
           ${readyBadge}
         </div>
         <div class="card-title" style="margin-top:6px; font-weight:500; font-size:.9rem;">${esc(i.쟁점)}</div>
-        <div class="card-body">${targets}</div>
+        <div class="card-body" data-toggle="issue">${targets}<span style="float:right">자세히 ▾</span></div>
+        <dl class="issue-detail">
+          <dt>필요사실 (${(i.필요사실 || []).length}건)</dt><dd>${factList}</dd>
+          <dt>강도</dt><dd>${esc(i.강도 || '미기재')}</dd>
+          <dt>반박위험</dt><dd>${esc(i.반박위험 || '미기재')}</dd>
+          <dt>법적근거</dt><dd>${esc(i.법적근거 || '미기재')}</dd>
+        </dl>
       </div>`;
   }).join('');
   return `<div class="issue-grid">${cards}</div>`;
@@ -351,7 +194,7 @@ duckpo.requireLogin(async (sb) => {
       sb.from('v_deadline_critical_watch').select('*').order('잔여일', { ascending: true }),
       sb.from('disposition').select('*').order('처분일', { ascending: true }),
       sb.from('fact_conflict').select('*').order('id', { ascending: true }),
-      sb.from('issue').select('issue_no, 상태, 쟁점, 대상').order('issue_no', { ascending: true }),
+      sb.from('issue').select('issue_no, 상태, 쟁점, 대상, 필요사실, 강도, 반박위험, 법적근거').order('issue_no', { ascending: true }),
       sb.from('v_issue_ready').select('issue_no'),
       sb.from('v_issue_gap').select('issue_no, 미확정사실'),
     ]);
@@ -395,6 +238,9 @@ duckpo.requireLogin(async (sb) => {
         ${renderConflicts(conflictRes.data || [])}
       </section>
     `;
+    content.querySelectorAll('.issue-card [data-toggle="issue"]').forEach(el => {
+      el.addEventListener('click', () => el.closest('.issue-card').classList.toggle('open'));
+    });
   } catch (e) {
     content.className = '';
     content.innerHTML = `<div class="empty-note">불러오기 실패: ${esc(e.message || String(e))}</div>`;
