@@ -28,6 +28,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 이 워크플로는 사람 검토 없이 즉시 main에 머지하고 즉시 배포까지
+      # 이어진다. 그래서 웹사이트 회귀 테스트를 여기, 머지 이전에 걸어
+      # 실패하면 애초에 main에 닿지 못하게 한다(2026.8.5 2차 독립검증
+      # 지적 — 검사 스크립트를 만들어놓고도 아무 워크플로가 실행하지
+      # 않으면 "선언만 있고 강제가 없는" 장식품에 불과하다).
+      - name: Site regression test (머지 전 게이트)
+        run: bash scripts/site/test-site.sh
+
       - name: Merge pushed branch into main
         run: |
           git config user.name "github-actions[bot]"

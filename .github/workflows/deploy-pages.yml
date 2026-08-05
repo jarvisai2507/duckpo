@@ -43,40 +43,47 @@ jobs:
       # 저장소 루트를 그대로 올리면 CLAUDE.md·docs/·.claude/ 등 내부 문서가
       # 정적 파일로 공개된다(로그인 게이트는 화면 표시만 통제하므로 막지 못한다).
       #
-      # 이름을 하나하나 나열하던 방식(2026.7.24)은 새 페이지를 만들 때마다
-      # 이 파일을 같이 고쳐야 했고, 실제로 2026.8.5 상황판.html이 이 목록에
-      # 빠진 채 push되어 레포에는 있지만 Pages에는 안 뜨는 상태가 발생했다.
-      #
-      # 순수 확장자 패턴(*.html 전부)으로 바꿨더니 그 즉시 반대 방향 결함이
-      # 발견됐다(같은 날 독립검증) — auto-publish.yml이 사람 검토 없이 즉시
-      # main에 머지·배포하는 구조라, 세션 중 실수로 만든 최상위 스크래치
-      # .html이 하나라도 남아 push되면 그것도 자동으로 공개된다(확장자
-      # 안전판은 .html 자체는 걸러내지 못한다). 그래서 .html은 "로그인
-      # 게이트를 실제로 담고 있는 파일"만 배포 대상으로 좁힌다 — 진짜 화면
-      # 페이지는 전부 #authGate를 갖고 있고, 스크래치 파일은 없다. js/css는
-      # 이름 3개뿐이라 그대로 패턴 유지.
-      - name: Stage site files (pattern allowlist + gate check)
+      # 이 목록은 세 번째 시도다. ①이름 나열(2026.7.24) — 새 페이지 추가 시
+      # 이 파일을 안 고치면 조용히 누락(2026.8.5 상황판.html 실사고).
+      # ②*.html 전부 자동 포함(2026.8.5 당일 1차 수정) — auto-publish.yml이
+      # 사람 검토 없이 즉시 main에 배포하는 구조라, 세션 중 남긴 스크래치
+      # .html이 그대로 함께 배포될 위험이 실측됨.
+      # ③id="authGate" 문자열 포함 여부로 판정(2026.8.5 당일 2차 수정) —
+      # 같은 날 2차 독립검증에서 **양방향으로** 뚫림이 실측됨: 기존 페이지를
+      # 복사해 만든 초안(예: 초안_내부메모.html)도 그 문자열을 그대로 갖고
+      # 있어 함께 배포되고(과다포함), 반대로 작은따옴표(id='authGate') 등
+      # 표기가 조금만 달라도 조용히 누락된다(과소포함) — 둘 다 실제로
+      # 재현됨. 그래서 다시 명시적 목록으로 돌아가되, 이번엔 **개수까지
+      # 검증**해 "몇 개가 왜 빠졌는지" 조용히 지나가지 않게 한다.
+      - name: Stage site files (explicit manifest)
         if: steps.cp.outcome == 'success'
         run: |
           set -euo pipefail
           rm -rf _site && mkdir -p _site
-          shopt -s nullglob
-          for f in *.html; do
-            if grep -q 'id="authGate"' "$f"; then
-              cp "$f" _site/
-            else
-              echo "::warning::건너뜀(로그인 게이트 없음, 배포 대상 아님): $f"
-            fi
+          PAGES=(index.html org.html 상황판.html 타임라인.html)
+          ASSETS=(auth.js theme.css nav.js)
+          for f in "${PAGES[@]}" "${ASSETS[@]}"; do
+            test -f "$f" || { echo "::error::배포 목록에 있는 파일이 저장소에 없다: $f"; exit 1; }
+            cp "$f" _site/
           done
-          for f in auth.js theme.css nav.js; do
-            [ -f "$f" ] && cp "$f" _site/
-          done
-          test -f _site/index.html || { echo "::error::index.html 누락 — 배포 중단"; exit 1; }
-          # 안전판: 허용 확장자(html/js/css) 외 파일이 섞였는지 기계 확인
-          if find _site -type f ! -name '*.html' ! -name '*.js' ! -name '*.css' | grep -q .; then
-            echo "::error::_site 에 허용 확장자 외 파일이 있다"; find _site -type f; exit 1
+          EXPECTED=$(( ${#PAGES[@]} + ${#ASSETS[@]} ))
+          ACTUAL=$(find _site -type f | wc -l)
+          if [ "$ACTUAL" -ne "$EXPECTED" ]; then
+            echo "::error::배포 파일 수 불일치 — 기대 ${EXPECTED}건, 실제 ${ACTUAL}건"; exit 1
           fi
-          echo "배포 파일 $(find _site -type f | wc -l)건:"; find _site -type f -printf '  %f (%s bytes)\n'
+          # 안전판: 허용 확장자(html/js/css) 외 파일이 섞였는지 재확인.
+          # `find | grep -q` 조합은 grep이 첫 매치에서 먼저 종료해 find가
+          # SIGPIPE로 죽고 pipefail 때문에 조용히 통과할 수 있어(2026.8.5
+          # 2차 독립검증 적발), wc -l로 전량을 소비해 세는 방식으로 쓴다.
+          EXTRA=$(find _site -type f ! -name '*.html' ! -name '*.js' ! -name '*.css' | wc -l)
+          if [ "$EXTRA" -ne 0 ]; then
+            echo "::error::_site 에 허용 확장자 외 파일 ${EXTRA}건이 있다"; find _site -type f; exit 1
+          fi
+          echo "배포 파일 ${ACTUAL}건:"; find _site -type f -printf '  %f (%s bytes)\n'
+
+      - name: Site regression test
+        if: steps.cp.outcome == 'success'
+        run: bash scripts/site/test-site.sh
 
       - name: Upload artifact
         if: steps.cp.outcome == 'success'

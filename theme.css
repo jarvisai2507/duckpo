@@ -181,7 +181,7 @@ section > .sub { font-size: .82rem; color: var(--text-sub); margin-bottom: 14px;
   font-size: .95rem; font-weight: 600; cursor: pointer;
 }
 .gate-card button:disabled { opacity: .6; cursor: wait; }
-.gate-err { display: none; margin-top: 12px; font-size: .82rem; color: #dc2626; }
+.gate-err { display: none; margin-top: 12px; font-size: .82rem; color: var(--danger); }
 #gateRoles { display: flex; flex-direction: column; gap: 10px; }
 .role-btn {
   width: 100%; padding: 12px;
