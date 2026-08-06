@@ -7,6 +7,9 @@ _site/
 # 문지기 상태 파일 — 세션마다 달라지는 증분 추적용
 .claude/.upload-seen
 
+# 서브에이전트 격리 작업공간 — 실행 중 임시 생성, 완료 시 자동 정리
+.claude/worktrees/
+
 # 작업 산출물 — 발송본·판독물은 금고(Supabase)에만 둔다
 scratchpad/
 *.zip
